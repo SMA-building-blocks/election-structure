@@ -36,6 +36,7 @@ public abstract class BaseAgent extends Agent {
 	public static final String UNEXPECTED_MSG = "RECEIVED AN UNEXPECTED MESSAGE FROM";
 	public static final String CREATE = "CREATE";
 	public static final String CREATOR = "Creator";
+	public static final String QUORUM = "QUORUM";
 
 	public static final String ANSI_RESET = "\u001B[0m";
 	public static final String ANSI_BLUE = "\u001B[34m";
@@ -56,6 +57,7 @@ public abstract class BaseAgent extends Agent {
 	protected static final Long TIMEOUT_LIMIT = 1000L;
 	protected static boolean randomAgentMalfunction = false;
 	protected boolean brokenAgent = false;
+	protected boolean candidate = false;
 
 	@Override
 	protected void setup() {}
@@ -152,7 +154,7 @@ public abstract class BaseAgent extends Agent {
 		};
 	}
 
-	protected WakerBehaviour timeoutBehaviour(AID requestedAgent, String requestedOperation, long timeout) {
+	protected WakerBehaviour timeoutBehaviour( String motivation, long timeout) {
 		return new WakerBehaviour (this, timeout) {
 			private static final long serialVersionUID = 1L;
 
@@ -163,8 +165,8 @@ public abstract class BaseAgent extends Agent {
 				 * IMPLEMENT THIS METHOD BEHAVIOUR ON CONCRETE CLASS
 				 */
 				ACLMessage newMessage = new ACLMessage(ACLMessage.SUBSCRIBE);
-				newMessage.addReceiver(requestedAgent);
-				newMessage.setContent(String.format("%l %s", timeout, requestedOperation));
+				newMessage.addReceiver(this.getAgent().getAID());
+				newMessage.setContent(String.format("%l %s", timeout, motivation));
 				send(newMessage);
 			}
 		};
