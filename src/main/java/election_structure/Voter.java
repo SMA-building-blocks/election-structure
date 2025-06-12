@@ -118,7 +118,7 @@ public class Voter extends BaseAgent {
 					}
 
 				} else if(msg.getContent().startsWith("CANDIDCODE")) {
-					registerCandidature(myAgent, Integer.parseInt(splittedMsg[1]));
+					registerCandidature(myAgent, Integer.parseInt(splittedMsg[1]), msg);
 				} else {
 					logger.log(Level.INFO, 
 							String.format("%s %s %s", getLocalName(), UNEXPECTED_MSG, msg.getSender().getLocalName()));
@@ -190,12 +190,14 @@ public class Voter extends BaseAgent {
 		logger.log(Level.INFO, String.format("%s REQUESTED CANDIDATE CODE TO MEDIATOR!", getLocalName()));
 	}
 
-	private void registerCandidature(Agent myAgent, int candidateCode){
+	private void registerCandidature(Agent myAgent, int candidateCode, ACLMessage msg){
 		String proposal;
 		int proposalLen;
-
 		registerDF(myAgent, "Candidate", Integer.toString(candidateCode));
 		logger.log(Level.INFO, String.format("%s REGISTERED AS CANDIDATE!", getLocalName()));
+		ACLMessage msg2 = msg.createReply();
+		msg2.setPerformative(ACLMessage.INFORM);
+
 		
 		// send candidature to manager
 	}
