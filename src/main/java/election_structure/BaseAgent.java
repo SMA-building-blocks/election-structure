@@ -37,6 +37,7 @@ public abstract class BaseAgent extends Agent {
 	public static final String CREATE = "CREATE";
 	public static final String CREATOR = "Creator";
 	public static final String QUORUM = "QUORUM";
+	public static final String CANDIDATURE = "CANDIDATURE";
 
 	public static final String ANSI_RESET = "\u001B[0m";
 	public static final String ANSI_BLUE = "\u001B[34m";
@@ -58,6 +59,9 @@ public abstract class BaseAgent extends Agent {
 	protected static boolean randomAgentMalfunction = false;
 	protected boolean brokenAgent = false;
 	protected boolean candidate = false;
+
+	public static final String DEFAULT_PROPOSAL = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam suscipit tempor sem, id egestas metus commodo nec. Vivamus semper ultricies risus, vitae sollicitudin erat molestie a. Cras posuere turpis condimentum interdum rhoncus. Nulla a velit velit. Maecenas accumsan a leo eu lacinia. Cras lectus ligula, egestas quis eros ac, condimentum dapibus nisl. Nunc cursus nisi neque, eget tempor felis iaculis ac. Ut libero ipsum, fermentum vel enim non, cursus hendrerit massa. Etiam efficitur nisi a ullamcorper blandit. Suspendisse sodales interdum turpis, sed rhoncus enim dapibus dignissim. Vestibulum ut lacinia mi, sed varius tellus.";
+
 
 	@Override
 	protected void setup() {}

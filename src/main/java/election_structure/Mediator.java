@@ -11,10 +11,7 @@ import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.OneShotBehaviour;
 import jade.core.behaviours.WakerBehaviour;
-import jade.domain.DFService;
-import jade.domain.FIPAException;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
-import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.domain.FIPAAgentManagement.UnexpectedArgumentCount;
 import jade.lang.acl.ACLMessage;
 
@@ -60,15 +57,17 @@ public class Mediator extends BaseAgent {
 					
 					registeredQuorum = 0;
 
-					logger.log(Level.INFO, String.format("%s AGENT GENERATED VOTING WITH CODE %d!", getLocalName(), votingCode));
+					logger.log(Level.INFO, String.format("%s AGENT GENERATED ELECTION WITH CODE %d!", getLocalName(), votingCode));
 					
 					ACLMessage msg2 = msg.createReply();
 
 					msg2.setContent(String.format("VOTEID %d", votingCode));
 
 					send(msg2);
-					logger.log(Level.INFO,  String.format("%s SENT VOTING CODE TO %s", getLocalName(), msg.getSender().getLocalName()));
+					logger.log(Level.INFO,  String.format("%s SENT ELECTION CODE TO %s", getLocalName(), msg.getSender().getLocalName()));
 					
+					candidatures = new Hashtable<>();
+
 					genCandidateCodes();
 
 				} else if ( msg.getContent().startsWith(INFORM) ) {
@@ -100,8 +99,8 @@ public class Mediator extends BaseAgent {
 
 			public void action() {
 				String [] splittedMsg = msg.getContent().split(" ");
-				if(splittedMsg[0].equals(REQUEST)){
-					if(splittedMsg[2].equals("candidateCode")){
+				if ( splittedMsg[0].equals(REQUEST) ) {
+					if ( splittedMsg[2].equals("candidateCode") ) {
 						ACLMessage msg2 = msg.createReply();
 						msg2.setPerformative(ACLMessage.INFORM);
 
@@ -110,6 +109,20 @@ public class Mediator extends BaseAgent {
 						msg2.setContent(String.format("CANDIDCODE %d",candidateCode));
 						send(msg2);
 					}
+				} else if ( splittedMsg[0].equals(CANDIDATURE) ) {
+					int candidateCode = Integer.parseInt(splittedMsg[2]);
+					StringBuilder bldProposal = new StringBuilder();
+
+					for ( int i = 4; i < splittedMsg.length; ++i )
+						bldProposal.append(splittedMsg[i] + " ");
+
+					String proposal = bldProposal.toString().trim();
+
+					Candidature newCand = new Candidature(candidateCode, proposal);
+
+					candidatures.put(msg.getSender(), newCand);
+
+					logger.log(Level.INFO, String.format("%s %s REGISTERED AS CANDIDATE WITH CODE %d AND PROPOSAL: '%s'! %s", ANSI_BLUE, msg.getSender().getLocalName(), candidateCode, proposal, ANSI_RESET));
 				} else {
 					logger.log(Level.INFO, 
 							String.format("%s RECEIVED AN UNEXPECTED MESSAGE FROM %s", getLocalName(), msg.getSender().getLocalName()));

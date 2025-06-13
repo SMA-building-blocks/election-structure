@@ -38,7 +38,7 @@ public class Voter extends BaseAgent {
 		} else {
 			candidate = true;
 			logger.log(Level.WARNING,
-				String.format("%s I'm agent %s and I'll candidate myself ! %s", ANSI_CYAN, getLocalName(), ANSI_RESET));
+				String.format("%s I'm agent %s and I'll candidate myself! %s", ANSI_CYAN, getLocalName(), ANSI_RESET));
 		}
 	}
 	
@@ -72,7 +72,7 @@ public class Voter extends BaseAgent {
 					}
 				} else if (msg.getContent().startsWith(VOTEID)) {
 					logger.log(Level.INFO, 
-							String.format("RECEIVED VOTING ID FROM %s: %s", msg.getSender().getLocalName(), msg.getContent()));
+							String.format("RECEIVED ELECTION ID FROM %s: %s", msg.getSender().getLocalName(), msg.getContent()));
 					
 					
 					votingCode = Integer.parseInt(splittedMsg[1]);
@@ -100,22 +100,21 @@ public class Voter extends BaseAgent {
 					send(msg2);
 					logger.log(Level.INFO, String.format("%s SENT INVITE TO VOTERS!", getLocalName()));
 					
-					if(candidate){
+					if ( candidate ) 
 						requestCandidateCode();
-					}
 					
 				} else if (msg.getContent().startsWith(INVITE)) {
 					logger.log(Level.INFO, 
-							String.format("RECEIVED VOTING STRUCTURE FROM %s: %s", msg.getSender().getLocalName(), msg.getContent()));		
+							String.format("RECEIVED ELECTION INFO FROM %s: %s", msg.getSender().getLocalName(), msg.getContent()));		
 
 					votingCode = Integer.parseInt(splittedMsg[2]);
 					
 					registerDF(myAgent, Integer.toString(votingCode), Integer.toString(votingCode));
 					
 					informVotingRegistration();
-					if(candidate){
+
+					if ( candidate ) 
 						requestCandidateCode();
-					}
 
 				} else if(msg.getContent().startsWith("CANDIDCODE")) {
 					registerCandidature(myAgent, Integer.parseInt(splittedMsg[1]), msg);
@@ -146,7 +145,7 @@ public class Voter extends BaseAgent {
 					logger.log(Level.INFO,  String.format("%s SENT VOTE TO %s", getLocalName(), msg.getSender().getLocalName()));
 				} else {
 					logger.log(Level.INFO, 
-							String.format("%s %S %s", getLocalName(), UNEXPECTED_MSG, msg.getSender().getLocalName()));
+							String.format("%s %s %s", getLocalName(), UNEXPECTED_MSG, msg.getSender().getLocalName()));
 				}
 			}
 		};
@@ -168,7 +167,7 @@ public class Voter extends BaseAgent {
 		);
 		
 		send(informMsg);
-		logger.log(Level.INFO, String.format("%s INFORMED VOTING REGISTRATION TO MEDIATOR!", getLocalName()));
+		logger.log(Level.INFO, String.format("%s INFORMED ELECTION REGISTRATION TO MEDIATOR!", getLocalName()));
 	}
 
 	private void requestCandidateCode() {
@@ -191,14 +190,19 @@ public class Voter extends BaseAgent {
 	}
 
 	private void registerCandidature(Agent myAgent, int candidateCode, ACLMessage msg){
-		String proposal;
-		int proposalLen;
-		registerDF(myAgent, "Candidate", Integer.toString(candidateCode));
-		logger.log(Level.INFO, String.format("%s REGISTERED AS CANDIDATE!", getLocalName()));
-		ACLMessage msg2 = msg.createReply();
-		msg2.setPerformative(ACLMessage.INFORM);
+		int proposalLen = rand.nextInt(DEFAULT_PROPOSAL.length());
 
-		
-		// send candidature to manager
+		String proposal = DEFAULT_PROPOSAL.substring(0, proposalLen);
+
+		registerDF(myAgent, "Candidate", Integer.toString(candidateCode));
+
+		logger.log(Level.INFO, String.format("%s REGISTERED AS CANDIDATE!", getLocalName()));
+
+		String sendContent = String.format("%s CODE %d PROPOSAL %s", CANDIDATURE, candidateCode, proposal);
+
+		ACLMessage msg2 = msg.createReply();
+		msg2.setPerformative(ACLMessage.REQUEST);
+		msg2.setContent(sendContent);
+		send(msg2);
 	}
 }
