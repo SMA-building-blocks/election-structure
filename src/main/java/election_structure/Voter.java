@@ -153,7 +153,14 @@ public class Voter extends BaseAgent {
 
 	private void informVotingRegistration() {
 		ACLMessage informMsg = new ACLMessage(ACLMessage.INFORM);
-		informMsg.setContent(String.format("%s IN %d", REGISTERED, votingCode));
+
+
+		String sendMsg = String.format("%s IN %d", REGISTERED, votingCode);
+
+		if ( candidate == true )
+			sendMsg += " AND CANDIDATE";
+
+		informMsg.setContent(sendMsg);
 		
 		ArrayList<DFAgentDescription> foundVotingParticipants;
 

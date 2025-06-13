@@ -22,10 +22,12 @@ public class Mediator extends BaseAgent {
 
 	private int registeredQuorum = 0;
 	private int totalQuorum = 0;
+	private Boolean ballotCreated = false;
 	
 	private Hashtable<AID, Integer> votingLog;
 	private Hashtable<AID, Candidature> candidatures;
 	private ArrayList<AID> winners;
+	private ArrayList<AID> candidates;
 	private Stack<Integer> candidateCodes;
 
 	@Override
@@ -67,6 +69,7 @@ public class Mediator extends BaseAgent {
 					logger.log(Level.INFO,  String.format("%s SENT ELECTION CODE TO %s", getLocalName(), msg.getSender().getLocalName()));
 					
 					candidatures = new Hashtable<>();
+					candidates = new ArrayList<>();
 
 					genCandidateCodes();
 
@@ -78,12 +81,18 @@ public class Mediator extends BaseAgent {
 					}
 
 				} else if ( msg.getContent().startsWith(REGISTERED) ) {
-					if(splittedMsg[2].startsWith(Integer.toString(votingCode))){
+					if( splittedMsg[2].startsWith(Integer.toString(votingCode)) )
 						registeredQuorum++;
+
+					if ( msg.getContent().endsWith("CANDIDATURE") ) {
+						candidates.add(msg.getSender());
 					}
-					if(registeredQuorum == totalQuorum){
-						createBallot();
-					}
+
+					if ( (registeredQuorum == totalQuorum) && (candidates.isEmpty()) ) {
+						
+
+					} 
+
 				} else {
 					logger.log(Level.INFO, 
 							String.format("%s RECEIVED AN UNEXPECTED MESSAGE FROM %s", getLocalName(), msg.getSender().getLocalName()));
@@ -121,6 +130,13 @@ public class Mediator extends BaseAgent {
 					Candidature newCand = new Candidature(candidateCode, proposal);
 
 					candidatures.put(msg.getSender(), newCand);
+
+					candidates.remove(msg.getSender());
+
+					if ( (registeredQuorum == totalQuorum) && (candidates.isEmpty()) ) {
+						
+
+					} 
 
 					logger.log(Level.INFO, String.format("%s %s REGISTERED AS CANDIDATE WITH CODE %d AND PROPOSAL: '%s'! %s", ANSI_BLUE, msg.getSender().getLocalName(), candidateCode, proposal, ANSI_RESET));
 				} else {
