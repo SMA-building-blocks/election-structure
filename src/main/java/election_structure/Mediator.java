@@ -23,6 +23,7 @@ public class Mediator extends BaseAgent {
 	private int registeredQuorum = 0;
 	private int totalQuorum = 0;
 	private Boolean ballotCreated = false;
+	private Boolean ballotRequested = false;
 	
 	private Hashtable<AID, Integer> votingLog;
 	private Hashtable<AID, Candidature> candidatures;
@@ -88,12 +89,20 @@ public class Mediator extends BaseAgent {
 						candidates.add(msg.getSender());
 					}
 
-					if ( (registeredQuorum == totalQuorum) && (candidates.isEmpty()) ) {
-						
-
+					if ( (registeredQuorum == totalQuorum) && (candidates.isEmpty()) && !ballotRequested) {
+						createBallot();
 					} 
 
-				} else {
+				} else if(msg.getContent().startsWith("CHECK")){
+
+					ballotCreated = true;
+					ACLMessage msg2 = msg.createReply();
+
+					msg2.setContent(String.format("VOTEID %d", votingCode));
+
+					send(msg2);
+					
+				}else {
 					logger.log(Level.INFO, 
 							String.format("%s RECEIVED AN UNEXPECTED MESSAGE FROM %s", getLocalName(), msg.getSender().getLocalName()));
 				}
@@ -133,12 +142,11 @@ public class Mediator extends BaseAgent {
 
 					candidates.remove(msg.getSender());
 
-					if ( (registeredQuorum == totalQuorum) && (candidates.isEmpty()) ) {
-						
-
+					if ( (registeredQuorum == totalQuorum) && (candidates.isEmpty()) && !ballotRequested) {
+						createBallot();
 					} 
 
-					logger.log(Level.INFO, String.format("%s %s REGISTERED AS CANDIDATE WITH CODE %d AND PROPOSAL: '%s'! %s", ANSI_BLUE, msg.getSender().getLocalName(), candidateCode, proposal, ANSI_RESET));
+					logger.log(Level.INFO, String.format("%s %s REGISTERED AS CANDIDATE WITH CODE %d AND PROPOSAL: '%s'! %s", ANSI_PURPLE, msg.getSender().getLocalName(), candidateCode, proposal, ANSI_RESET));
 				} else {
 					logger.log(Level.INFO, 
 							String.format("%s RECEIVED AN UNEXPECTED MESSAGE FROM %s", getLocalName(), msg.getSender().getLocalName()));
@@ -155,10 +163,17 @@ public class Mediator extends BaseAgent {
 			@Override
 			protected void onWake() {
 				if ( motivation.equals("registration") ) {
-					logger.log(Level.WARNING,
-						String.format("%s Agent registration timed out! %s", ANSI_YELLOW, ANSI_RESET));
-
-					createBallot();
+					if(!ballotRequested){
+						logger.log(Level.WARNING,
+							String.format("%s Agent registration timed out! %s", ANSI_YELLOW, ANSI_RESET));
+						createBallot();
+					}
+				} else if (motivation.equals("Create-Ballot")){
+					if(!ballotCreated){
+						logger.log(Level.WARNING,
+							String.format("%s Ballot creation timed out! %s", ANSI_YELLOW, ANSI_RESET));
+						createBallot();
+					}
 				}
 			}
 		};
@@ -219,8 +234,12 @@ public class Mediator extends BaseAgent {
 	}
 
 	private void createBallot(){
-
-
+		ACLMessage reqAgentMsg = new ACLMessage(ACLMessage.REQUEST);
+		reqAgentMsg.setContent(String.format("%s %s", CREATE, "Ballot"));
+		reqAgentMsg.addReceiver(searchAgentByType(CREATOR)[0].getName());
+		send(reqAgentMsg);
+		ballotRequested = true;
+		addBehaviour(timeoutBehaviour( "Create-Ballot", TIMEOUT_LIMIT));
 	}
 
 	private void genCandidateCodes() {
