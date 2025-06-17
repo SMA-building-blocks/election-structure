@@ -48,7 +48,6 @@ public class App extends BaseAgent {
 
 		try {
 			AgentContainer container = getContainerController();
-
 			votersName.forEach(worker -> {
 				this.launchAgent(worker, "election_structure.Voter", null);
 				logger.log(Level.INFO, String.format("%s CREATED AND STARTED NEW VOTER: %s ON CONTAINER %s",

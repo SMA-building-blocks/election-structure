@@ -2,6 +2,7 @@ package election_structure;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.logging.Level;
 
 import jade.core.AID;
@@ -17,13 +18,21 @@ public class Voter extends BaseAgent {
 	private int minVotingValue = 0;
 	private int maxVotingValue = 0;
 	private int myVotingValue = 0;
+	private Types myVotingType = Types.COMMON_VOTER;
 
 	@Override
 	protected void setup() {
 		addBehaviour(handleMessages());
 		logger.log(Level.INFO,String.format("I'm voter: %s", this.getLocalName()));
+
+		List<Types> possibleTypes = Arrays.asList(Types.values());
+
+		int randomIndex = rand.nextInt(possibleTypes.size());
+		myVotingType = possibleTypes.get(randomIndex);
 		
 		this.registerDF(this, "Voter", "voter");
+
+		this.registerDF(this, myVotingType.toString(), myVotingType.toString());
 
 		if ( !randomAgentMalfunction || rand.nextInt(11) != 10 ) {
 			logger.log(Level.INFO, String.format("I'm the %s!", getLocalName()));

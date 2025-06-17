@@ -18,6 +18,10 @@ import jade.domain.FIPAAgentManagement.SearchConstraints;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.lang.acl.ACLMessage;
 
+enum Types {
+	COMMON_VOTER
+}
+
 public abstract class BaseAgent extends Agent {
 
 	private static final long serialVersionUID = 1L;

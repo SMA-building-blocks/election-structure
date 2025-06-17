@@ -31,6 +31,8 @@ public class Mediator extends BaseAgent {
 	private ArrayList<AID> candidates;
 	private Stack<Integer> candidateCodes;
 
+	protected Hashtable<Types, Integer> votingWeights;
+
 	@Override
 	protected void setup() {
 
@@ -56,6 +58,9 @@ public class Mediator extends BaseAgent {
 					votingLog = new Hashtable<>();
 					winners = new ArrayList<>();
 
+					setupVotingWeights();
+					genCandidateCodes();
+
 					registerDF(myAgent, Integer.toString(votingCode), Integer.toString(votingCode));
 					
 					registeredQuorum = 0;
@@ -72,7 +77,7 @@ public class Mediator extends BaseAgent {
 					candidatures = new Hashtable<>();
 					candidates = new ArrayList<>();
 
-					genCandidateCodes();
+					
 
 				} else if ( msg.getContent().startsWith(INFORM) ) {
 
@@ -98,8 +103,12 @@ public class Mediator extends BaseAgent {
 					ballotCreated = true;
 					ACLMessage msg2 = msg.createReply();
 
-					msg2.setContent(String.format("VOTEID %d", votingCode));
+					StringBuilder strBld = new StringBuilder();
+					for ( Types type : votingWeights.keySet() ) {
+						strBld.append(String.format("%s %d ", type.toString(), votingWeights.get(type)));
+					}
 
+					msg2.setContent(String.format("VOTEID %d WEIGHTS %d %s", votingCode, votingWeights.size(), strBld.toString().trim()));
 					send(msg2);
 					
 				}else {
@@ -189,6 +198,14 @@ public class Mediator extends BaseAgent {
 
 	private void computeResults() {
 
+	}
+
+	private void setupVotingWeights () {
+		votingWeights = new Hashtable<>();
+
+		for ( Types element : Types.values() ) {
+			votingWeights.put(element, rand.nextInt(5));
+		}
 	}
 	
 	private void requestVotes() {
