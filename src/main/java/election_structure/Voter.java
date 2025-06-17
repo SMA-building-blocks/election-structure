@@ -45,7 +45,7 @@ public class Voter extends BaseAgent {
 		if ( rand.nextInt(11) <= 5 ) {
 			logger.log(Level.INFO, String.format("I'm the %s!", getLocalName()));
 		} else {
-			candidate = true;
+			candidate = false;
 			logger.log(Level.WARNING,
 				String.format("%s I'm agent %s and I'll candidate myself! %s", ANSI_CYAN, getLocalName(), ANSI_RESET));
 		}

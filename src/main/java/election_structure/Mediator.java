@@ -111,7 +111,9 @@ public class Mediator extends BaseAgent {
 					msg2.setContent(String.format("VOTEID %d WEIGHTS %d %s", votingCode, votingWeights.size(), strBld.toString().trim()));
 					send(msg2);
 					
-				}else {
+				} else if ( msg.getContent().startsWith("FAILURE") ) { 
+					deleteElection(Integer.parseInt(splittedMsg[1]));
+				} else {
 					logger.log(Level.INFO, 
 							String.format("%s RECEIVED AN UNEXPECTED MESSAGE FROM %s", getLocalName(), msg.getSender().getLocalName()));
 				}
@@ -198,6 +200,14 @@ public class Mediator extends BaseAgent {
 
 	private void computeResults() {
 
+	}
+
+	private void deleteElection (int receivedVotingCode) {
+		logger.log(Level.INFO, String.format("%s DELETING ELECTION WITH CODE %d %s", ANSI_CYAN, receivedVotingCode, ANSI_RESET));
+
+		/*
+		 * HERE, WE SHOULD IMPLEMENT VOTING DELETION LOGIC
+		 */
 	}
 
 	private void setupVotingWeights () {

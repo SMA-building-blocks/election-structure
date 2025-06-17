@@ -63,6 +63,7 @@ public class Ballot extends BaseAgent {
 
 
 				} else {
+					System.out.println(msg.getContent());
 					logger.log(Level.INFO, 
 							String.format("%s %s %s", getLocalName(), UNEXPECTED_MSG, msg.getSender().getLocalName()));
 				}
@@ -72,21 +73,54 @@ public class Ballot extends BaseAgent {
 
 	private void setupBallot () {
 		receivedVotes = new Hashtable<>();
+		registeredCandidates = new ArrayList<>();
+		registeredVoters = new Hashtable<>();
 
 		ArrayList<DFAgentDescription> foundVoters = new ArrayList<>(
 			Arrays.asList(searchAgentByType(Integer.toString(votingCode))));
 
 		Iterator<ServiceDescription> iterator;
+		try {
+			for ( DFAgentDescription voter : foundVoters ) {
+				iterator = voter.getAllServices();
 
-		for ( DFAgentDescription voter : foundVoters ) {
-			iterator = voter.getAllServices();
-
-			while ( iterator.hasNext() ) {
-				ServiceDescription el = iterator.next();
-				System.out.println(el.getName());
+				while ( iterator.hasNext() ) {
+					ServiceDescription el = iterator.next();
+					if ( Arrays.toString(Types.values()).contains(el.getName()) ) {
+						registeredVoters.put(voter.getName(), Types.valueOf(el.getName()));
+					} else if ( el.getName().equals("Candidate") ) {
+						registeredCandidates.add(voter.getName());
+					}
+				}
 			}
+		} catch ( Exception e ) {
+			logger.log(Level.SEVERE, String.format("%s ERROR WHILE PERFORMING BALLOT SETUP %s", ANSI_RED, ANSI_RESET));
+			e.printStackTrace();
 		}
 
+		if ( registeredCandidates.size() < 1 || registeredVoters.size() < 2 ) {
+			logger.log(Level.WARNING, String.format("%s THERE CANNOT BE AN ELECTION WITH NO CANDIDATES OR NOT ENOUGH QUORUM %s", ANSI_YELLOW, ANSI_RESET));
+			
+			ACLMessage msg = new ACLMessage(ACLMessage.INFORM);
+			
+			ArrayList<DFAgentDescription> foundMediators;
+			String [] searchTypes = { Integer.toString(votingCode), "mediator" };
+			foundMediators = new ArrayList<>(
+				Arrays.asList(searchAgentByType(searchTypes)));
 
+			if ( foundMediators.size() > 0 ) {
+				for ( DFAgentDescription fndMed : foundMediators ) {
+					msg.addReceiver(fndMed.getName());
+				}
+			}
+
+			msg.setContent(String.format("FAILURE %d", votingCode));
+			send(msg);
+		}
+
+		/*
+		 * HERE, WE SHOULD CONTINUE THE ELECTION
+		 * BY SENDING A "READY" MESSAGE TO THE MEDIATOR
+		 */
 	}
 }
