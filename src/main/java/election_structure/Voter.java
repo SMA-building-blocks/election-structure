@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 
 import jade.core.AID;
@@ -73,7 +74,7 @@ public class Voter extends BaseAgent {
 					
 					try {
 						AID foundMediator = null;
-						if ( foundAgents.size() > 0 ) {
+						if ( !foundAgents.isEmpty() ) {
 							foundMediator = foundAgents.get(0).getName();
 							
 							msg2.addReceiver(foundMediator);
@@ -196,7 +197,7 @@ public class Voter extends BaseAgent {
 
 		String sendMsg = String.format("%s IN %d", REGISTERED, votingCode);
 
-		if ( candidate == true )
+		if ( candidate )
 			sendMsg += " AND CANDIDATE";
 
 		informMsg.setContent(sendMsg);
@@ -263,20 +264,21 @@ public class Voter extends BaseAgent {
 
 	private String chooseVote(){
 		
-		String selectedCandidate = new String();
+		String selectedCandidate = "";
 		
-		int max =-1, min = Integer.MAX_VALUE;
+		int max =-1;
+		int min = Integer.MAX_VALUE;
 		int len;
-		for(String candID : recvProposals.keySet()){
-			len = recvProposals.get(candID).length();
+		for(Map.Entry<String,String> entry : recvProposals.entrySet()){
+			len = entry.getValue().length();
 			if(len > max && selectionMethod == 1){
 				max = len;
-				selectedCandidate = candID;
+				selectedCandidate = entry.getKey();
 			}
 
 			if(len < min && selectionMethod == 0){
 				min = len;
-				selectedCandidate = candID;
+				selectedCandidate = entry.getKey();
 			}
 		}
 		
