@@ -2,28 +2,59 @@ package election_structure;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Hashtable;
+import java.util.List;
 import java.util.logging.Level;
 
 import jade.core.AID;
+import jade.core.Agent;
 import jade.core.behaviours.OneShotBehaviour;
+import jade.core.behaviours.WakerBehaviour;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.lang.acl.ACLMessage;
 
 public class Voter extends BaseAgent {
 
 	private static final long serialVersionUID = 1L;
-	
-	private int minVotingValue = 0;
-	private int maxVotingValue = 0;
-	private int myVotingValue = 0;
+
+	private Types myVotingType = Types.COMMON_VOTER;
+
+	private Hashtable<String, String> recvProposals;
+	private int candidatesCount; 
+	private int candidatesExpected;
+	int selectionMethod;
 
 	@Override
 	protected void setup() {
+		addBehaviour(handleMessages());
 		logger.log(Level.INFO,String.format("I'm voter: %s", this.getLocalName()));
+
+		List<Types> possibleTypes = Arrays.asList(Types.values());
+
+		int randomIndex = rand.nextInt(possibleTypes.size());
+		myVotingType = possibleTypes.get(randomIndex);
 		
 		this.registerDF(this, "Voter", "voter");
 
-		addBehaviour(handleMessages());
+		this.registerDF(this, myVotingType.toString(), myVotingType.toString());
+
+		if ( !randomAgentMalfunction || rand.nextInt(11) != 10 ) {
+			logger.log(Level.INFO, String.format("I'm the %s!", getLocalName()));
+		} else {
+			brokenAgent = true;
+			logger.log(Level.WARNING,
+				String.format("%s I'm agent %s and I have a malfunction! %s", ANSI_CYAN, getLocalName(), ANSI_RESET));
+		}
+
+		if ( rand.nextInt(11) <= 5 ) {
+			logger.log(Level.INFO, String.format("I'm the %s!", getLocalName()));
+		} else {
+			candidate = true;
+			logger.log(Level.WARNING,
+				String.format("%s I'm agent %s and I'll candidate myself! %s", ANSI_CYAN, getLocalName(), ANSI_RESET));
+		}
+
+		selectionMethod = rand.nextInt(2);
 	}
 	
 	@Override
@@ -32,16 +63,18 @@ public class Voter extends BaseAgent {
 			private static final long serialVersionUID = 1L;
 
 			public void action () {
+				String [] splittedMsg = msg.getContent().split(" ");
+
 				if (msg.getContent().startsWith(START)) {
 					ACLMessage msg2 = new ACLMessage(ACLMessage.INFORM);
 					msg2.setContent(START);
-					
-					DFAgentDescription [] foundAgents = searchAgentByType("mediator");
+
+					ArrayList<DFAgentDescription> foundAgents = findMediators( new String[]{} );
 					
 					try {
 						AID foundMediator = null;
-						if ( foundAgents.length > 0 ) {
-							foundMediator = foundAgents[0].getName();
+						if ( foundAgents.size() > 0 ) {
+							foundMediator = foundAgents.get(0).getName();
 							
 							msg2.addReceiver(foundMediator);
 							
@@ -54,13 +87,11 @@ public class Voter extends BaseAgent {
 					}
 				} else if (msg.getContent().startsWith(VOTEID)) {
 					logger.log(Level.INFO, 
-							String.format("RECEIVED VOTING STRUCTURE FROM %s: %s", msg.getSender().getLocalName(), msg.getContent()));
-					
-					String [] splittedMsg = msg.getContent().split(" ");
+							String.format("RECEIVED ELECTION ID FROM %s: %s", msg.getSender().getLocalName(), msg.getContent()));
 					
 					votingCode = Integer.parseInt(splittedMsg[1]);
-					minVotingValue = Integer.parseInt(splittedMsg[3]);
-					maxVotingValue = Integer.parseInt(splittedMsg[5]);
+					recvProposals = new Hashtable<>();
+					candidatesCount = 0;
 					
 					registerDF(myAgent, Integer.toString(votingCode), Integer.toString(votingCode));
 					
@@ -85,31 +116,31 @@ public class Voter extends BaseAgent {
 					send(msg2);
 					logger.log(Level.INFO, String.format("%s SENT INVITE TO VOTERS!", getLocalName()));
 					
+					if ( candidate ) 
+						requestCandidateCode();
 					
 				} else if (msg.getContent().startsWith(INVITE)) {
 					logger.log(Level.INFO, 
-							String.format("RECEIVED VOTING STRUCTURE FROM %s: %s", msg.getSender().getLocalName(), msg.getContent()));		
-					
-					String [] splittedMsg = msg.getContent().split(" ");
+							String.format("RECEIVED ELECTION INFO FROM %s: %s", msg.getSender().getLocalName(), msg.getContent()));		
 
 					votingCode = Integer.parseInt(splittedMsg[2]);
-					minVotingValue = Integer.parseInt(splittedMsg[4]);
-					maxVotingValue = Integer.parseInt(splittedMsg[6]);
+					recvProposals = new Hashtable<>();
+					candidatesCount = 0;
 					
 					registerDF(myAgent, Integer.toString(votingCode), Integer.toString(votingCode));
 					
 					informVotingRegistration();
-				} else if(msg.getContent().startsWith(WINNER) || msg.getContent().startsWith(DRAW)){ 
-					ACLMessage rpl = msg.createReply();
 
-					rpl.setContent(THANKS);
-					send(rpl);
+					if ( candidate ) 
+						requestCandidateCode();
 
-					minVotingValue = 0;
-					maxVotingValue = 0;
-					myVotingValue = 0;
-					votingCode = 0;
-					
+				} else if ( msg.getContent().startsWith("CANDIDCODE") ) {
+					registerCandidature(myAgent, Integer.parseInt(splittedMsg[1]), msg);
+				} else if ( msg.getContent().startsWith("CANDIDATE") ) { 
+					String prop = msg.getContent().substring(msg.getContent().indexOf(PROPOSAL) + PROPOSAL.length() + 1); 
+
+					recvProposals.put(splittedMsg[1], prop);
+					candidatesCount++;
 				} else {
 					logger.log(Level.INFO, 
 							String.format("%s %s %s", getLocalName(), UNEXPECTED_MSG, msg.getSender().getLocalName()));
@@ -124,20 +155,36 @@ public class Voter extends BaseAgent {
 			private static final long serialVersionUID = 1L;
 
 			public void action () {
-				if (msg.getContent().startsWith(REQUEST)) {
-					
-					myVotingValue = rand.nextInt(minVotingValue, maxVotingValue + 1);	
-					
-					ACLMessage voteMsg = msg.createReply();
-					voteMsg.setPerformative(ACLMessage.INFORM);
-					voteMsg.setContent(String.format("%s ON %d: %d", VOTE, votingCode, myVotingValue));
-					
-					send(voteMsg);
+				String [] splittedMsg = msg.getContent().split(" ");
 
+				if (msg.getContent().startsWith(REQUEST)) {	
+					
+					candidatesExpected = Integer.parseInt(splittedMsg[5]);
+
+					if (candidatesCount == candidatesExpected){
+						vote();
+					}else{
+						addBehaviour(timeoutBehaviour("recvCandidatures", TIMEOUT_LIMIT*3));
+					}
+					
 					logger.log(Level.INFO,  String.format("%s SENT VOTE TO %s", getLocalName(), msg.getSender().getLocalName()));
 				} else {
 					logger.log(Level.INFO, 
-							String.format("%s %S %s", getLocalName(), UNEXPECTED_MSG, msg.getSender().getLocalName()));
+							String.format("%s %s %s", getLocalName(), UNEXPECTED_MSG, msg.getSender().getLocalName()));
+				}
+			}
+		};
+	}
+
+	@Override
+	protected WakerBehaviour timeoutBehaviour( String motivation, long timeout) {
+		return new WakerBehaviour(this, timeout) {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			protected void onWake() {
+				if ( motivation.equals("recvCandidatures") ) {
+					vote();
 				}
 			}
 		};
@@ -145,20 +192,94 @@ public class Voter extends BaseAgent {
 
 	private void informVotingRegistration() {
 		ACLMessage informMsg = new ACLMessage(ACLMessage.INFORM);
-		informMsg.setContent(String.format("%s IN %d", REGISTERED, votingCode));
-		
-		ArrayList<DFAgentDescription> foundVotingParticipants;
 
-		String [] types = { Integer.toString(votingCode), "mediator" };
+
+		String sendMsg = String.format("%s IN %d", REGISTERED, votingCode);
+
+		if ( candidate == true )
+			sendMsg += " AND CANDIDATE";
+
+		informMsg.setContent(sendMsg);
+
+		ArrayList<DFAgentDescription> foundMediators = findMediators( new String[]{ Integer.toString(votingCode) } );
 		
-		foundVotingParticipants = new ArrayList<>(
-				Arrays.asList(searchAgentByType(types)));
-		
-		foundVotingParticipants.forEach(ag -> 
+		foundMediators.forEach(ag -> 
 			informMsg.addReceiver(ag.getName())
 		);
 		
 		send(informMsg);
-		logger.log(Level.INFO, String.format("%s INFORMED VOTING REGISTRATION TO MEDIATOR!", getLocalName()));
+		logger.log(Level.INFO, String.format("%s INFORMED ELECTION REGISTRATION TO MEDIATOR!", getLocalName()));
+	}
+
+	private void requestCandidateCode() {
+		ACLMessage requestMsg = new ACLMessage(ACLMessage.REQUEST);
+		requestMsg.setContent(String.format("%s %d %s", REQUEST, votingCode, "candidateCode"));
+
+		ArrayList<DFAgentDescription> foundMediators = findMediators( new String[]{ Integer.toString(votingCode) } );
+		
+		foundMediators.forEach(ag -> 
+			requestMsg.addReceiver(ag.getName())
+		);
+		
+		send(requestMsg);
+		logger.log(Level.INFO, String.format("%s REQUESTED CANDIDATE CODE TO MEDIATOR!", getLocalName()));
+	}
+
+	private void registerCandidature(Agent myAgent, int candidateCode, ACLMessage msg){
+		int proposalLen = rand.nextInt(DEFAULT_PROPOSAL.length());
+
+		String proposal = DEFAULT_PROPOSAL.substring(0, proposalLen);
+
+		registerDF(myAgent, "Candidate", Integer.toString(candidateCode));
+
+		logger.log(Level.INFO, String.format("%s REGISTERED AS CANDIDATE!", getLocalName()));
+
+		String sendContent = String.format("%s CODE %d PROPOSAL %s", CANDIDATURE, candidateCode, proposal);
+
+		ACLMessage msg2 = msg.createReply();
+		msg2.setPerformative(ACLMessage.REQUEST);
+		msg2.setContent(sendContent);
+		send(msg2);
+	}
+
+	private void vote(){
+		ACLMessage msg = new ACLMessage(ACLMessage.INFORM);
+
+		ArrayList<DFAgentDescription> foundVotingParticipants;
+		String [] types = { Integer.toString(votingCode), "ballot" };
+
+		foundVotingParticipants = new ArrayList<>(
+				Arrays.asList(searchAgentByType(types)));
+
+		msg.addReceiver(foundVotingParticipants.get(0).getName());
+
+		String selectedCandidate = chooseVote();
+		msg.setContent(String.format("%d %s", votingCode, selectedCandidate));
+
+		send(msg);
+
+		logger.log(Level.INFO, String.format("%s VOTED in %s!", getLocalName(), selectedCandidate));
+	}
+
+	private String chooseVote(){
+		
+		String selectedCandidate = new String();
+		
+		int max =-1, min = Integer.MAX_VALUE;
+		int len;
+		for(String candID : recvProposals.keySet()){
+			len = recvProposals.get(candID).length();
+			if(len > max && selectionMethod == 1){
+				max = len;
+				selectedCandidate = candID;
+			}
+
+			if(len < min && selectionMethod == 0){
+				min = len;
+				selectedCandidate = candID;
+			}
+		}
+		
+		return selectedCandidate;
 	}
 }
