@@ -115,10 +115,6 @@ public class Ballot extends BaseAgent {
 
 		startElection();
 
-		/*
-		 * HERE, WE SHOULD CONTINUE THE ELECTION
-		 * BY SENDING A "READY" MESSAGE TO THE MEDIATOR
-		 */
 	}
 
 	private void startElection () {

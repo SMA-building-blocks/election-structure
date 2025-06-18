@@ -9,6 +9,7 @@ import java.util.logging.Level;
 import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.OneShotBehaviour;
+import jade.core.behaviours.WakerBehaviour;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.lang.acl.ACLMessage;
 
@@ -20,6 +21,8 @@ public class Voter extends BaseAgent {
 
 	private Hashtable<String, String> recvProposals;
 	private int candidatesCount; 
+	private int candidatesExpected;
+	int selectionMethod;
 
 	@Override
 	protected void setup() {
@@ -50,6 +53,8 @@ public class Voter extends BaseAgent {
 			logger.log(Level.WARNING,
 				String.format("%s I'm agent %s and I'll candidate myself! %s", ANSI_CYAN, getLocalName(), ANSI_RESET));
 		}
+
+		selectionMethod = rand.nextInt(2);
 	}
 	
 	@Override
@@ -153,23 +158,33 @@ public class Voter extends BaseAgent {
 				String [] splittedMsg = msg.getContent().split(" ");
 
 				if (msg.getContent().startsWith(REQUEST)) {	
-					ArrayList<String> candidateCodes = new ArrayList<>();
-
-					for ( int i = 6; i < splittedMsg.length; ++i )
-						candidateCodes.add(splittedMsg[i]);
 					
-					String [] types = { Integer.toString(votingCode), "voter" };
-					ArrayList<DFAgentDescription> foundElectionCandidates = new ArrayList<>(
-							Arrays.asList(searchAgentByType(types)));
+					candidatesExpected = Integer.parseInt(splittedMsg[5]);
 
-					/*
-					 * CRIAR LÓGICA DE ENVIO DE VOTOS AO RECEBIMENTO DE TODAS AS PROPOSTAS
-					 */
+					if (candidatesCount == candidatesExpected){
+						vote();
+					}else{
+						addBehaviour(timeoutBehaviour("recvCandidatures", TIMEOUT_LIMIT*3));
+					}
 					
 					logger.log(Level.INFO,  String.format("%s SENT VOTE TO %s", getLocalName(), msg.getSender().getLocalName()));
 				} else {
 					logger.log(Level.INFO, 
 							String.format("%s %s %s", getLocalName(), UNEXPECTED_MSG, msg.getSender().getLocalName()));
+				}
+			}
+		};
+	}
+
+	@Override
+	protected WakerBehaviour timeoutBehaviour( String motivation, long timeout) {
+		return new WakerBehaviour(this, timeout) {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			protected void onWake() {
+				if ( motivation.equals("recvCandidatures") ) {
+					vote();
 				}
 			}
 		};
@@ -225,5 +240,46 @@ public class Voter extends BaseAgent {
 		msg2.setPerformative(ACLMessage.REQUEST);
 		msg2.setContent(sendContent);
 		send(msg2);
+	}
+
+	private void vote(){
+		ACLMessage msg = new ACLMessage(ACLMessage.INFORM);
+
+		ArrayList<DFAgentDescription> foundVotingParticipants;
+		String [] types = { Integer.toString(votingCode), "ballot" };
+
+		foundVotingParticipants = new ArrayList<>(
+				Arrays.asList(searchAgentByType(types)));
+
+		msg.addReceiver(foundVotingParticipants.get(0).getName());
+
+		String selectedCandidate = chooseVote();
+		msg.setContent(String.format("%d %s", votingCode, selectedCandidate));
+
+		send(msg);
+
+		logger.log(Level.INFO, String.format("%s VOTED in %s!", getLocalName(), selectedCandidate));
+	}
+
+	private String chooseVote(){
+		
+		String selectedCandidate = new String();
+		
+		int max =-1, min = Integer.MAX_VALUE;
+		int len;
+		for(String candID : recvProposals.keySet()){
+			len = recvProposals.get(candID).length();
+			if(len > max && selectionMethod == 1){
+				max = len;
+				selectedCandidate = candID;
+			}
+
+			if(len < min && selectionMethod == 0){
+				min = len;
+				selectedCandidate = candID;
+			}
+		}
+		
+		return selectedCandidate;
 	}
 }

@@ -50,7 +50,6 @@ public class Mediator extends BaseAgent {
 				String [] splittedMsg = msg.getContent().split(" ");
 
 				if (msg.getContent().startsWith(START)) {
-					// send them a message requesting for a number
 					
 					votingCode = votingCodeGenerator();
 					
@@ -241,8 +240,6 @@ public class Mediator extends BaseAgent {
 
 			ACLMessage requestVoteMsg = new ACLMessage(ACLMessage.REQUEST);
 			requestVoteMsg.setContent(String.format("%s VOTE FOR %d WITH %d CANDIDATES", REQUEST, votingCode, candidatures.size()));
-			
-			
 			
 			foundVotingParticipants.forEach(ag -> 
 				requestVoteMsg.addReceiver(ag.getName())
