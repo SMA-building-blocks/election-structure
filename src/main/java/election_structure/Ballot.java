@@ -2,6 +2,7 @@ package election_structure;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Iterator;
@@ -24,11 +25,11 @@ public class Ballot extends BaseAgent {
 	private Hashtable<Integer, Map<Types, Integer>> receivedVotes;
 	private Hashtable<Types, Integer> votingWeights;
 
-	AtomicInteger receivedVotesCnt;
+	private AtomicInteger receivedVotesCnt;
 
-	Boolean votesCollected = false;
+	private Boolean votesCollected = false;
 
-	private final Object lock = new Object();
+	private final transient Object lock = new Object();
 
     @Override
     protected void setup() {
@@ -80,7 +81,7 @@ public class Ballot extends BaseAgent {
 					synchronized(lock){
 						Map<Types, Integer> updateMap = receivedVotes.get(vote);
 
-						if (updateMap == null) updateMap = new HashMap<Types,Integer>();
+						if (updateMap == null) updateMap = new EnumMap<>(Types.class);
 						
 						updateMap.put(voterType, updateMap.get(voterType) == null? 1 : updateMap.get(voterType) + 1);
 						receivedVotes.put(vote, updateMap);
@@ -218,12 +219,6 @@ public class Ballot extends BaseAgent {
 			}
 
 		}
-		
-		System.out.println("WEIGHTS: ");
-		for(Map.Entry<Types, Integer> entry : votingWeights.entrySet()){
-			System.out.println("Key: " + entry.getKey() + " Weight: " + entry.getValue());
-		}
-		System.out.println("WINNER: " + winnerCandidates + " VoteCount: " + maxVote);
 	
 		ACLMessage msg = new ACLMessage(ACLMessage.INFORM);
 
