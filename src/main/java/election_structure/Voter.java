@@ -2,6 +2,7 @@ package election_structure;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.logging.Level;
 
@@ -14,11 +15,11 @@ import jade.lang.acl.ACLMessage;
 public class Voter extends BaseAgent {
 
 	private static final long serialVersionUID = 1L;
-	
-	private int minVotingValue = 0;
-	private int maxVotingValue = 0;
-	private int myVotingValue = 0;
+
 	private Types myVotingType = Types.COMMON_VOTER;
+
+	private Hashtable<String, String> recvProposals;
+	private int candidatesCount; 
 
 	@Override
 	protected void setup() {
@@ -45,7 +46,7 @@ public class Voter extends BaseAgent {
 		if ( rand.nextInt(11) <= 5 ) {
 			logger.log(Level.INFO, String.format("I'm the %s!", getLocalName()));
 		} else {
-			candidate = false;
+			candidate = true;
 			logger.log(Level.WARNING,
 				String.format("%s I'm agent %s and I'll candidate myself! %s", ANSI_CYAN, getLocalName(), ANSI_RESET));
 		}
@@ -62,13 +63,13 @@ public class Voter extends BaseAgent {
 				if (msg.getContent().startsWith(START)) {
 					ACLMessage msg2 = new ACLMessage(ACLMessage.INFORM);
 					msg2.setContent(START);
-					
-					DFAgentDescription [] foundAgents = searchAgentByType("mediator");
+
+					ArrayList<DFAgentDescription> foundAgents = findMediators( new String[]{} );
 					
 					try {
 						AID foundMediator = null;
-						if ( foundAgents.length > 0 ) {
-							foundMediator = foundAgents[0].getName();
+						if ( foundAgents.size() > 0 ) {
+							foundMediator = foundAgents.get(0).getName();
 							
 							msg2.addReceiver(foundMediator);
 							
@@ -83,8 +84,9 @@ public class Voter extends BaseAgent {
 					logger.log(Level.INFO, 
 							String.format("RECEIVED ELECTION ID FROM %s: %s", msg.getSender().getLocalName(), msg.getContent()));
 					
-					
 					votingCode = Integer.parseInt(splittedMsg[1]);
+					recvProposals = new Hashtable<>();
+					candidatesCount = 0;
 					
 					registerDF(myAgent, Integer.toString(votingCode), Integer.toString(votingCode));
 					
@@ -117,6 +119,8 @@ public class Voter extends BaseAgent {
 							String.format("RECEIVED ELECTION INFO FROM %s: %s", msg.getSender().getLocalName(), msg.getContent()));		
 
 					votingCode = Integer.parseInt(splittedMsg[2]);
+					recvProposals = new Hashtable<>();
+					candidatesCount = 0;
 					
 					registerDF(myAgent, Integer.toString(votingCode), Integer.toString(votingCode));
 					
@@ -125,8 +129,13 @@ public class Voter extends BaseAgent {
 					if ( candidate ) 
 						requestCandidateCode();
 
-				} else if(msg.getContent().startsWith("CANDIDCODE")) {
+				} else if ( msg.getContent().startsWith("CANDIDCODE") ) {
 					registerCandidature(myAgent, Integer.parseInt(splittedMsg[1]), msg);
+				} else if ( msg.getContent().startsWith("CANDIDATE") ) { 
+					String prop = msg.getContent().substring(msg.getContent().indexOf(PROPOSAL) + PROPOSAL.length() + 1); 
+
+					recvProposals.put(splittedMsg[1], prop);
+					candidatesCount++;
 				} else {
 					logger.log(Level.INFO, 
 							String.format("%s %s %s", getLocalName(), UNEXPECTED_MSG, msg.getSender().getLocalName()));
@@ -141,16 +150,22 @@ public class Voter extends BaseAgent {
 			private static final long serialVersionUID = 1L;
 
 			public void action () {
-				if (msg.getContent().startsWith(REQUEST)) {
-					
-					myVotingValue = rand.nextInt(minVotingValue, maxVotingValue + 1);	
-					
-					ACLMessage voteMsg = msg.createReply();
-					voteMsg.setPerformative(ACLMessage.INFORM);
-					voteMsg.setContent(String.format("%s ON %d: %d", VOTE, votingCode, myVotingValue));
-					
-					send(voteMsg);
+				String [] splittedMsg = msg.getContent().split(" ");
 
+				if (msg.getContent().startsWith(REQUEST)) {	
+					ArrayList<String> candidateCodes = new ArrayList<>();
+
+					for ( int i = 6; i < splittedMsg.length; ++i )
+						candidateCodes.add(splittedMsg[i]);
+					
+					String [] types = { Integer.toString(votingCode), "voter" };
+					ArrayList<DFAgentDescription> foundElectionCandidates = new ArrayList<>(
+							Arrays.asList(searchAgentByType(types)));
+
+					/*
+					 * CRIAR LÓGICA DE ENVIO DE VOTOS AO RECEBIMENTO DE TODAS AS PROPOSTAS
+					 */
+					
 					logger.log(Level.INFO,  String.format("%s SENT VOTE TO %s", getLocalName(), msg.getSender().getLocalName()));
 				} else {
 					logger.log(Level.INFO, 
@@ -170,15 +185,10 @@ public class Voter extends BaseAgent {
 			sendMsg += " AND CANDIDATE";
 
 		informMsg.setContent(sendMsg);
-		
-		ArrayList<DFAgentDescription> foundVotingParticipants;
 
-		String [] types = { Integer.toString(votingCode), "mediator" };
+		ArrayList<DFAgentDescription> foundMediators = findMediators( new String[]{ Integer.toString(votingCode) } );
 		
-		foundVotingParticipants = new ArrayList<>(
-				Arrays.asList(searchAgentByType(types)));
-		
-		foundVotingParticipants.forEach(ag -> 
+		foundMediators.forEach(ag -> 
 			informMsg.addReceiver(ag.getName())
 		);
 		
@@ -189,15 +199,10 @@ public class Voter extends BaseAgent {
 	private void requestCandidateCode() {
 		ACLMessage requestMsg = new ACLMessage(ACLMessage.REQUEST);
 		requestMsg.setContent(String.format("%s %d %s", REQUEST, votingCode, "candidateCode"));
-		
-		ArrayList<DFAgentDescription> foundVotingParticipants;
 
-		String [] types = { Integer.toString(votingCode), "mediator" };
+		ArrayList<DFAgentDescription> foundMediators = findMediators( new String[]{ Integer.toString(votingCode) } );
 		
-		foundVotingParticipants = new ArrayList<>(
-				Arrays.asList(searchAgentByType(types)));
-		
-		foundVotingParticipants.forEach(ag -> 
+		foundMediators.forEach(ag -> 
 			requestMsg.addReceiver(ag.getName())
 		);
 		

@@ -1,6 +1,7 @@
 package election_structure;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Random;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
@@ -42,6 +43,7 @@ public abstract class BaseAgent extends Agent {
 	public static final String CREATOR = "Creator";
 	public static final String QUORUM = "QUORUM";
 	public static final String CANDIDATURE = "CANDIDATURE";
+	public static final String PROPOSAL = "PROPOSAL";
 
 	public static final String ANSI_RESET = "\u001B[0m";
 	public static final String ANSI_BLUE = "\u001B[34m";
@@ -299,6 +301,19 @@ public abstract class BaseAgent extends Agent {
 		handler.setFormatter(new LogFormatter());
 		logger.setUseParentHandlers(false);
 		logger.addHandler(handler);
+	}
+
+	protected ArrayList<DFAgentDescription> findMediators ( String[] searchAttr ) {
+		ArrayList<DFAgentDescription> foundMediators;
+		
+		ArrayList<String> searchTypes = new ArrayList<>(Arrays.asList("mediator"));
+		if ( searchAttr.length > 0 )
+			searchTypes.addAll(Arrays.asList(searchAttr));
+
+		foundMediators = new ArrayList<>(
+			Arrays.asList(searchAgentByType(searchTypes.toArray(new String[]{}))));
+
+		return foundMediators;
 	}
 }
 

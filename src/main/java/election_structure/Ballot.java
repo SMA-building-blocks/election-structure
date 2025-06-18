@@ -60,10 +60,7 @@ public class Ballot extends BaseAgent {
 					}
 
 					setupBallot();
-
-
 				} else {
-					System.out.println(msg.getContent());
 					logger.log(Level.INFO, 
 							String.format("%s %s %s", getLocalName(), UNEXPECTED_MSG, msg.getSender().getLocalName()));
 				}
@@ -103,11 +100,7 @@ public class Ballot extends BaseAgent {
 			
 			ACLMessage msg = new ACLMessage(ACLMessage.INFORM);
 			
-			ArrayList<DFAgentDescription> foundMediators;
-			String [] searchTypes = { Integer.toString(votingCode), "mediator" };
-			foundMediators = new ArrayList<>(
-				Arrays.asList(searchAgentByType(searchTypes)));
-
+			ArrayList<DFAgentDescription> foundMediators = findMediators( new String[]{ Integer.toString(votingCode) } );
 			if ( foundMediators.size() > 0 ) {
 				for ( DFAgentDescription fndMed : foundMediators ) {
 					msg.addReceiver(fndMed.getName());
@@ -116,11 +109,35 @@ public class Ballot extends BaseAgent {
 
 			msg.setContent(String.format("FAILURE %d", votingCode));
 			send(msg);
+
+			return;
 		}
+
+		startElection();
 
 		/*
 		 * HERE, WE SHOULD CONTINUE THE ELECTION
 		 * BY SENDING A "READY" MESSAGE TO THE MEDIATOR
 		 */
+	}
+
+	private void startElection () {
+		try {
+			logger.log(Level.INFO, String.format("%s BALLOT READY! REQUESTING ELECTION START! %s", ANSI_GREEN, ANSI_RESET));
+			ACLMessage msg = new ACLMessage(ACLMessage.INFORM);
+				
+			ArrayList<DFAgentDescription> foundMediators = findMediators( new String[]{ Integer.toString(votingCode) } );
+			if ( foundMediators.size() > 0 ) {
+				for ( DFAgentDescription fndMed : foundMediators ) {
+					msg.addReceiver(fndMed.getName());
+				}
+			}
+
+			msg.setContent(String.format("READY %d", votingCode));
+			send(msg);
+		} catch ( Exception e ) {
+			logger.log(Level.SEVERE, String.format("%s ERROR WHILE PERFORMING BALLOT SETUP %s", ANSI_RED, ANSI_RESET));
+			e.printStackTrace();
+		}
 	}
 }

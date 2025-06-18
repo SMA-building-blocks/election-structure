@@ -12,7 +12,6 @@ import jade.core.Agent;
 import jade.core.behaviours.OneShotBehaviour;
 import jade.core.behaviours.WakerBehaviour;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
-import jade.domain.FIPAAgentManagement.UnexpectedArgumentCount;
 import jade.lang.acl.ACLMessage;
 
 public class Mediator extends BaseAgent {
@@ -28,7 +27,7 @@ public class Mediator extends BaseAgent {
 	private Hashtable<AID, Integer> votingLog;
 	private Hashtable<AID, Candidature> candidatures;
 	private ArrayList<AID> winners;
-	private ArrayList<AID> candidates;
+	private ArrayList<AID> preCandidates;
 	private Stack<Integer> candidateCodes;
 
 	protected Hashtable<Types, Integer> votingWeights;
@@ -75,12 +74,11 @@ public class Mediator extends BaseAgent {
 					logger.log(Level.INFO,  String.format("%s SENT ELECTION CODE TO %s", getLocalName(), msg.getSender().getLocalName()));
 					
 					candidatures = new Hashtable<>();
-					candidates = new ArrayList<>();
+					preCandidates = new ArrayList<>();
 
 					
 
 				} else if ( msg.getContent().startsWith(INFORM) ) {
-
 					if (splittedMsg[1].equals(QUORUM)) {
 						addBehaviour(timeoutBehaviour( "registration", TIMEOUT_LIMIT));
 						totalQuorum = Integer.parseInt(splittedMsg[2]);
@@ -91,10 +89,10 @@ public class Mediator extends BaseAgent {
 						registeredQuorum++;
 
 					if ( msg.getContent().endsWith("CANDIDATURE") ) {
-						candidates.add(msg.getSender());
+						preCandidates.add(msg.getSender());
 					}
 
-					if ( (registeredQuorum == totalQuorum) && (candidates.isEmpty()) && !ballotRequested) {
+					if ( (registeredQuorum == totalQuorum) && (preCandidates.isEmpty()) && !ballotRequested) {
 						createBallot();
 					} 
 
@@ -110,9 +108,22 @@ public class Mediator extends BaseAgent {
 
 					msg2.setContent(String.format("VOTEID %d WEIGHTS %d %s", votingCode, votingWeights.size(), strBld.toString().trim()));
 					send(msg2);
-					
 				} else if ( msg.getContent().startsWith("FAILURE") ) { 
 					deleteElection(Integer.parseInt(splittedMsg[1]));
+				} else if ( msg.getContent().startsWith("READY") ) {
+					try {
+						int votCode = Integer.parseInt(splittedMsg[1]);
+
+						if ( votCode == votingCode ) {
+							startElection();
+						} else {
+							throw new Exception("Voting code does not match!");
+						}
+					} catch ( Exception e ) {
+						logger.log(Level.SEVERE, String.format("%s ERROR WHILE PERFORMING BALLOT SETUP %s", ANSI_RED, ANSI_RESET));
+						e.printStackTrace();
+					}
+
 				} else {
 					logger.log(Level.INFO, 
 							String.format("%s RECEIVED AN UNEXPECTED MESSAGE FROM %s", getLocalName(), msg.getSender().getLocalName()));
@@ -151,9 +162,9 @@ public class Mediator extends BaseAgent {
 
 					candidatures.put(msg.getSender(), newCand);
 
-					candidates.remove(msg.getSender());
+					preCandidates.remove(msg.getSender());
 
-					if ( (registeredQuorum == totalQuorum) && (candidates.isEmpty()) && !ballotRequested) {
+					if ( (registeredQuorum == totalQuorum) && (preCandidates.isEmpty()) && !ballotRequested) {
 						createBallot();
 					} 
 
@@ -218,21 +229,20 @@ public class Mediator extends BaseAgent {
 		}
 	}
 	
-	private void requestVotes() {
+	private void startElection() {
 		try {
-			ACLMessage requestVoteMsg = new ACLMessage(ACLMessage.REQUEST);
-			requestVoteMsg.setContent(String.format("%s VOTE FOR %d", REQUEST, votingCode));
-			
 			ArrayList<DFAgentDescription> foundVotingParticipants;
-
 			String [] types = { Integer.toString(votingCode), "voter" };
 
 			foundVotingParticipants = new ArrayList<>(
 					Arrays.asList(searchAgentByType(types)));
+
+			informCandidatesProposals(foundVotingParticipants);
+
+			ACLMessage requestVoteMsg = new ACLMessage(ACLMessage.REQUEST);
+			requestVoteMsg.setContent(String.format("%s VOTE FOR %d WITH %d CANDIDATES", REQUEST, votingCode, candidatures.size()));
 			
-			if ( foundVotingParticipants.size() != registeredQuorum ) {
-				throw new UnexpectedArgumentCount();
-			}
+			
 			
 			foundVotingParticipants.forEach(ag -> 
 				requestVoteMsg.addReceiver(ag.getName())
@@ -241,8 +251,8 @@ public class Mediator extends BaseAgent {
 			send(requestVoteMsg);
 			logger.log(Level.INFO, 
 					String.format("%s REQUESTED A VOTE FOR ALL %d VOTERS!", getLocalName(), foundVotingParticipants.size()));
-		} catch (Exception e) {
-			logger.log(Level.SEVERE, String.format("%s FOUND VOTERS DIFFERS FROM REGISTERED QUORUM! %s", ANSI_RED, ANSI_RESET));
+		} catch ( Exception e ) {
+			logger.log(Level.SEVERE, String.format("%s ERROR WHILE INFORMING ELECTION START TO VOTERS! %s", ANSI_RED, ANSI_RESET));
 			e.printStackTrace();
 		}
 	}
@@ -272,9 +282,27 @@ public class Mediator extends BaseAgent {
 	private void genCandidateCodes() {
 		candidateCodes =  new Stack<>();
 
-		for (int i = 1; i <= MAX_VOTING_CODE; i++) {
+		for (int i = 1; i <= MAX_VOTING_CODE; i++)
 			candidateCodes.push(i);
-		}
+		
 		Collections.shuffle(candidateCodes);
+	}
+
+	private void informCandidatesProposals ( ArrayList<DFAgentDescription> foundVotingParticipants ) {
+		ACLMessage msg = new ACLMessage(ACLMessage.INFORM);
+		foundVotingParticipants.forEach(vot -> {
+			msg.addReceiver(vot.getName());
+		});
+
+		for ( AID candAID : candidatures.keySet() ) {
+			Candidature cdtr = candidatures.get(candAID);
+			String content = String.format("CANDIDATE %d %s %s", cdtr.candidatureNumber, PROPOSAL, cdtr.proposal);
+
+			msg.setContent(content);
+			send(msg);
+		}
+
+		logger.log(Level.INFO, 
+					String.format("%s %s SENT CANDIDATES' PROPOSALS TO ALL VOTERS! %s", ANSI_PURPLE , getLocalName(), ANSI_RESET));
 	}
 }
