@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Hashtable;
+import java.util.Map;
 import java.util.Stack;
 import java.util.logging.Level;
 
@@ -101,8 +102,8 @@ public class Mediator extends BaseAgent {
 					ACLMessage msg2 = msg.createReply();
 
 					StringBuilder strBld = new StringBuilder();
-					for ( Types type : votingWeights.keySet() ) {
-						strBld.append(String.format("%s %d ", type.toString(), votingWeights.get(type)));
+					for ( Map.Entry<Types,Integer> entry : votingWeights.entrySet() ) {
+						strBld.append(String.format("%s %d ", entry.getKey().toString(), entry.getValue()));
 					}
 
 					msg2.setContent(String.format("VOTEID %d WEIGHTS %d %s", votingCode, votingWeights.size(), strBld.toString().trim()));
@@ -183,33 +184,35 @@ public class Mediator extends BaseAgent {
 
 			@Override
 			protected void onWake() {
-				if ( motivation.equals("registration") ) {
-					if(!ballotRequested){
+				if ( motivation.equals("registration") && !ballotCreated) {
 						logger.log(Level.WARNING,
 							String.format("%s Agent registration timed out! %s", ANSI_YELLOW, ANSI_RESET));
 						createBallot();
-					}
-				} else if (motivation.equals("Create-Ballot")){
-					if(!ballotCreated){
+				} else if (motivation.equals("Create-Ballot") && !ballotCreated){
 						logger.log(Level.WARNING,
 							String.format("%s Ballot creation timed out! %s", ANSI_YELLOW, ANSI_RESET));
 						createBallot();
-					}
 				}
 			}
 		};
 	}
 	
 	private void informWinner(){
-		
+		/*
+		 * TODO: when finished election broadcast the winner
+		 */
 	}
 
 	protected void resetVoting(Agent myAgent){
-
+		/*
+		 * TODO: when finished election reset all data
+		 */
 	}
 
 	private void computeResults() {
-
+		/*
+		 * TODO: move to ballot agent
+		 */
 	}
 
 	private void deleteElection (int receivedVotingCode) {
@@ -287,12 +290,12 @@ public class Mediator extends BaseAgent {
 
 	private void informCandidatesProposals ( ArrayList<DFAgentDescription> foundVotingParticipants ) {
 		ACLMessage msg = new ACLMessage(ACLMessage.INFORM);
-		foundVotingParticipants.forEach(vot -> {
-			msg.addReceiver(vot.getName());
-		});
+		foundVotingParticipants.forEach(vot -> 
+			msg.addReceiver(vot.getName())
+		);
 
-		for ( AID candAID : candidatures.keySet() ) {
-			Candidature cdtr = candidatures.get(candAID);
+		for ( Map.Entry<AID, Candidature> entry : candidatures.entrySet() ) {
+			Candidature cdtr = entry.getValue();
 			String content = String.format("CANDIDATE %d %s %s", cdtr.candidatureNumber, PROPOSAL, cdtr.proposal);
 
 			msg.setContent(content);
