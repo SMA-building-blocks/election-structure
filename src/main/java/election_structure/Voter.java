@@ -23,7 +23,7 @@ public class Voter extends BaseAgent {
 	private Hashtable<String, String> recvProposals;
 	private int candidatesCount; 
 	private int candidatesExpected;
-	int selectionMethod;
+	private int selectionMethod;
 
 	@Override
 	protected void setup() {

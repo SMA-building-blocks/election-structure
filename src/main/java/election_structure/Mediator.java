@@ -124,6 +124,19 @@ public class Mediator extends BaseAgent {
 						e.printStackTrace();
 					}
 
+				} else if(msg.getContent().startsWith("RESULTS") ) {
+
+					System.out.println(msg.getContent());
+					/*
+					 * TODO: implement what to do with the results
+					 */
+
+				} else if(msg.getContent().startsWith("ELECTIONLOG") ) {
+
+					System.out.println(msg.getContent());
+					/*
+					 * TODO: implement what to do with the logs
+					 */
 				} else {
 					logger.log(Level.INFO, 
 							String.format("%s RECEIVED AN UNEXPECTED MESSAGE FROM %s", getLocalName(), msg.getSender().getLocalName()));
@@ -209,12 +222,6 @@ public class Mediator extends BaseAgent {
 		 */
 	}
 
-	private void computeResults() {
-		/*
-		 * TODO: move to ballot agent
-		 */
-	}
-
 	private void deleteElection (int receivedVotingCode) {
 		logger.log(Level.INFO, String.format("%s DELETING ELECTION WITH CODE %d %s", ANSI_CYAN, receivedVotingCode, ANSI_RESET));
 
@@ -227,7 +234,7 @@ public class Mediator extends BaseAgent {
 		votingWeights = new Hashtable<>();
 
 		for ( Types element : Types.values() ) {
-			votingWeights.put(element, rand.nextInt(5));
+			votingWeights.put(element, rand.nextInt(1,6));
 		}
 	}
 	
