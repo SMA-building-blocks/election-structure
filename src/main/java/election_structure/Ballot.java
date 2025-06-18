@@ -95,13 +95,13 @@ public class Ballot extends BaseAgent {
 			e.printStackTrace();
 		}
 
-		if ( registeredCandidates.size() < 1 || registeredVoters.size() < 2 ) {
+		if ( registeredCandidates.isEmpty() || registeredVoters.size() < 2 ) {
 			logger.log(Level.WARNING, String.format("%s THERE CANNOT BE AN ELECTION WITH NO CANDIDATES OR NOT ENOUGH QUORUM %s", ANSI_YELLOW, ANSI_RESET));
 			
 			ACLMessage msg = new ACLMessage(ACLMessage.INFORM);
 			
 			ArrayList<DFAgentDescription> foundMediators = findMediators( new String[]{ Integer.toString(votingCode) } );
-			if ( foundMediators.size() > 0 ) {
+			if ( !foundMediators.isEmpty() ) {
 				for ( DFAgentDescription fndMed : foundMediators ) {
 					msg.addReceiver(fndMed.getName());
 				}
@@ -123,7 +123,7 @@ public class Ballot extends BaseAgent {
 			ACLMessage msg = new ACLMessage(ACLMessage.INFORM);
 				
 			ArrayList<DFAgentDescription> foundMediators = findMediators( new String[]{ Integer.toString(votingCode) } );
-			if ( foundMediators.size() > 0 ) {
+			if ( !foundMediators.isEmpty() ) {
 				for ( DFAgentDescription fndMed : foundMediators ) {
 					msg.addReceiver(fndMed.getName());
 				}
