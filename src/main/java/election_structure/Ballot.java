@@ -20,7 +20,7 @@ import jade.lang.acl.ACLMessage;
 public class Ballot extends BaseAgent {
 
 	private Hashtable<AID, Types> registeredVoters;
-	private ArrayList<AID> registeredCandidates;
+	private Hashtable<Integer, AID> registeredCandidates;
 
 	private Hashtable<Integer, Map<Types, Integer>> receivedVotes;
 	private Hashtable<Types, Integer> votingWeights;
@@ -77,6 +77,8 @@ public class Ballot extends BaseAgent {
 				} else if (msg.getContent().startsWith(Integer.toString(votingCode))) {
 					Types voterType = registeredVoters.get(msg.getSender());
 					int vote = Integer.parseInt(splittedMsg[1]);
+
+					if(!registeredCandidates.containsKey(vote)) vote = -1;
 					
 					synchronized(lock){
 						Map<Types, Integer> updateMap = receivedVotes.get(vote);
@@ -122,7 +124,7 @@ public class Ballot extends BaseAgent {
 
 	private void setupBallot () {
 		receivedVotes = new Hashtable<>();
-		registeredCandidates = new ArrayList<>();
+		registeredCandidates = new Hashtable<>();
 		registeredVoters = new Hashtable<>();
 
 		ArrayList<DFAgentDescription> foundVoters = new ArrayList<>(
@@ -138,7 +140,7 @@ public class Ballot extends BaseAgent {
 					if ( Arrays.toString(Types.values()).contains(el.getName()) ) {
 						registeredVoters.put(voter.getName(), Types.valueOf(el.getName()));
 					} else if ( el.getName().equals("Candidate") ) {
-						registeredCandidates.add(voter.getName());
+						registeredCandidates.put( Integer.parseInt(el.getType()), voter.getName());
 					}
 				}
 			}

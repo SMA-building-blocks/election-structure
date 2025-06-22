@@ -126,6 +126,7 @@ public class Mediator extends BaseAgent {
 
 				} else if(msg.getContent().startsWith("RESULTS") ) {
 
+					
 					System.out.println(msg.getContent());
 					/*
 					 * TODO: implement what to do with the results
