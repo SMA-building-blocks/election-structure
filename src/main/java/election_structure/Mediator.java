@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Hashtable;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.Stack;
 import java.util.logging.Level;
 
@@ -11,7 +13,10 @@ import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.OneShotBehaviour;
 import jade.core.behaviours.WakerBehaviour;
+import jade.domain.DFService;
+import jade.domain.FIPAException;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
+import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.lang.acl.ACLMessage;
 
 public class Mediator extends BaseAgent {
@@ -23,10 +28,8 @@ public class Mediator extends BaseAgent {
 	private int totalQuorum = 0;
 	private Boolean ballotCreated = false;
 	private Boolean ballotRequested = false;
-	
-	private Hashtable<AID, Integer> votingLog;
+
 	private Hashtable<AID, Candidature> candidatures;
-	private ArrayList<AID> winners;
 	private ArrayList<AID> preCandidates;
 	private Stack<Integer> candidateCodes;
 
@@ -52,9 +55,6 @@ public class Mediator extends BaseAgent {
 				if (msg.getContent().startsWith(START)) {
 					
 					votingCode = votingCodeGenerator();
-					
-					votingLog = new Hashtable<>();
-					winners = new ArrayList<>();
 
 					setupVotingWeights();
 					genCandidateCodes();
@@ -74,9 +74,6 @@ public class Mediator extends BaseAgent {
 					
 					candidatures = new Hashtable<>();
 					preCandidates = new ArrayList<>();
-
-					
-
 				} else if ( msg.getContent().startsWith(INFORM) ) {
 					if (splittedMsg[1].equals(QUORUM)) {
 						addBehaviour(timeoutBehaviour( "registration", TIMEOUT_LIMIT));
@@ -101,14 +98,14 @@ public class Mediator extends BaseAgent {
 					ACLMessage msg2 = msg.createReply();
 
 					StringBuilder strBld = new StringBuilder();
-					for ( Types type : votingWeights.keySet() ) {
-						strBld.append(String.format("%s %d ", type.toString(), votingWeights.get(type)));
+					for ( Map.Entry<Types,Integer> entry : votingWeights.entrySet() ) {
+						strBld.append(String.format("%s %d ", entry.getKey().toString(), entry.getValue()));
 					}
 
 					msg2.setContent(String.format("VOTEID %d WEIGHTS %d %s", votingCode, votingWeights.size(), strBld.toString().trim()));
 					send(msg2);
 				} else if ( msg.getContent().startsWith("FAILURE") ) { 
-					deleteElection(Integer.parseInt(splittedMsg[1]));
+					resetElection(myAgent);
 				} else if ( msg.getContent().startsWith("READY") ) {
 					try {
 						int votCode = Integer.parseInt(splittedMsg[1]);
@@ -123,6 +120,29 @@ public class Mediator extends BaseAgent {
 						e.printStackTrace();
 					}
 
+				} else if(msg.getContent().startsWith("RESULTS") ) {
+
+					informWinner(msg.getContent());
+
+					String winnersCnt = splittedMsg[2];
+					String winnersVote = splittedMsg[4];
+
+					String winnersCode = "";
+
+					for(int i = 6; i < splittedMsg.length; i++){
+						winnersCode += splittedMsg[i] + " ";
+					}
+
+					String results = String.format(" ELECTION RESULTS FOR VOTING %d: \n", votingCode);
+					results = results.concat(String.format(" \t\tWinner count: %s\n",winnersCnt));
+					results = results.concat(String.format(" \t\tWinner received votes %s\n", winnersVote));
+					results = results.concat(String.format(" \t\tWinner Codes: %s ", winnersCode));
+
+					logger.log(Level.INFO, String.format("%s%s%s", ANSI_PURPLE, results, ANSI_RESET));
+
+				} else if(msg.getContent().startsWith("ELECTIONLOG") ) {
+					logger.log(Level.INFO, String.format("%s %s %s", ANSI_PURPLE, msg.getContent(), ANSI_RESET));
+					resetElection(myAgent);
 				} else {
 					logger.log(Level.INFO, 
 							String.format("%s RECEIVED AN UNEXPECTED MESSAGE FROM %s", getLocalName(), msg.getSender().getLocalName()));
@@ -183,48 +203,87 @@ public class Mediator extends BaseAgent {
 
 			@Override
 			protected void onWake() {
-				if ( motivation.equals("registration") ) {
-					if(!ballotRequested){
+				if ( votingCode != -1 && motivation.equals("registration") && !ballotCreated ) {
 						logger.log(Level.WARNING,
 							String.format("%s Agent registration timed out! %s", ANSI_YELLOW, ANSI_RESET));
 						createBallot();
-					}
-				} else if (motivation.equals("Create-Ballot")){
-					if(!ballotCreated){
+				} else if ( votingCode != -1 && motivation.equals("Create-Ballot") && !ballotCreated ){
 						logger.log(Level.WARNING,
 							String.format("%s Ballot creation timed out! %s", ANSI_YELLOW, ANSI_RESET));
 						createBallot();
-					}
 				}
 			}
 		};
 	}
 	
-	private void informWinner(){
-		
+	private void informWinner(String content){
+		ACLMessage msg2 = new ACLMessage(ACLMessage.INFORM);
+					
+		ArrayList<DFAgentDescription> foundVotingParticipants;
+		String [] types = { Integer.toString(votingCode), "voter" };
+
+		foundVotingParticipants = new ArrayList<>(
+				Arrays.asList(searchAgentByType(types)));
+
+		foundVotingParticipants.forEach(vot -> 
+			msg2.addReceiver(vot.getName())
+		);
+
+		msg2.setContent(content);
+		send(msg2);
+
+		logger.log(Level.INFO, 
+					String.format("%s %s SENT ELECTION RESULTS TO ALL VOTERS! %s", ANSI_PURPLE , getLocalName(), ANSI_RESET));
 	}
 
-	protected void resetVoting(Agent myAgent){
+	protected void resetElection(Agent myAgent){
+		registeredQuorum = 0;
+		totalQuorum = 0;
+		ballotCreated = false;
+		ballotRequested = false;
 
+		candidatures = new Hashtable<>();
+		preCandidates = new ArrayList<>();
+		candidateCodes = new Stack<>();
+
+		deleteAgentServices(myAgent, Integer.toString(votingCode), Integer.toString(votingCode));
+		deleteAgentServices(myAgent, "voter", "Candidate");
+
+		votingCode = -1;
+
+		logger.log(Level.WARNING, ANSI_YELLOW + "VOTING ENDED!" + ANSI_RESET);
 	}
 
-	private void computeResults() {
+	private void deleteAgentServices(Agent myAgent, String searchAttr, String deleteCondition) {
+		DFAgentDescription[] dfd = searchAgentByType(searchAttr);
 
+		for (int i = 0; i < dfd.length; i++) {
+			Iterator<ServiceDescription> it = dfd[i].getAllServices();
+
+			ServiceDescription sd;
+			while (it.hasNext()) {
+				sd = it.next();
+				if( sd.getType().equals(deleteCondition) || sd.getName().equals(deleteCondition) ){
+					dfd[i].removeServices(sd);
+					break;
+				}
+			}
+			
+			try {
+				DFService.modify(myAgent, dfd[i]);
+			} catch (FIPAException e) {
+				logger.log(Level.SEVERE, ANSI_RED + "ERROR WHILE MODIFYING AGENTS" + ANSI_RESET);
+				e.printStackTrace();
+			}
+		}
 	}
 
-	private void deleteElection (int receivedVotingCode) {
-		logger.log(Level.INFO, String.format("%s DELETING ELECTION WITH CODE %d %s", ANSI_CYAN, receivedVotingCode, ANSI_RESET));
-
-		/*
-		 * HERE, WE SHOULD IMPLEMENT VOTING DELETION LOGIC
-		 */
-	}
 
 	private void setupVotingWeights () {
 		votingWeights = new Hashtable<>();
 
 		for ( Types element : Types.values() ) {
-			votingWeights.put(element, rand.nextInt(5));
+			votingWeights.put(element, rand.nextInt(1,6));
 		}
 	}
 	
@@ -287,12 +346,12 @@ public class Mediator extends BaseAgent {
 
 	private void informCandidatesProposals ( ArrayList<DFAgentDescription> foundVotingParticipants ) {
 		ACLMessage msg = new ACLMessage(ACLMessage.INFORM);
-		foundVotingParticipants.forEach(vot -> {
-			msg.addReceiver(vot.getName());
-		});
+		foundVotingParticipants.forEach(vot -> 
+			msg.addReceiver(vot.getName())
+		);
 
-		for ( AID candAID : candidatures.keySet() ) {
-			Candidature cdtr = candidatures.get(candAID);
+		for ( Map.Entry<AID, Candidature> entry : candidatures.entrySet() ) {
+			Candidature cdtr = entry.getValue();
 			String content = String.format("CANDIDATE %d %s %s", cdtr.candidatureNumber, PROPOSAL, cdtr.proposal);
 
 			msg.setContent(content);

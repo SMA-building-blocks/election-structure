@@ -2,12 +2,17 @@ package election_structure;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Iterator;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 
 import jade.core.AID;
 import jade.core.behaviours.OneShotBehaviour;
+import jade.core.behaviours.WakerBehaviour;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.lang.acl.ACLMessage;
@@ -15,10 +20,16 @@ import jade.lang.acl.ACLMessage;
 public class Ballot extends BaseAgent {
 
 	private Hashtable<AID, Types> registeredVoters;
-	private ArrayList<AID> registeredCandidates;
+	private Hashtable<Integer, AID> registeredCandidates;
 
-	private Hashtable<Types, Integer> receivedVotes;
+	private Hashtable<Integer, Map<Types, Integer>> receivedVotes;
 	private Hashtable<Types, Integer> votingWeights;
+
+	private AtomicInteger receivedVotesCnt;
+
+	private Boolean votesCollected = false;
+
+	private final transient Object lock = new Object();
 
     @Override
     protected void setup() {
@@ -28,7 +39,9 @@ public class Ballot extends BaseAgent {
         logger.log(Level.INFO, "I'm the ballot!");
 		this.registerDF(this, "Ballot", "ballot");
 
-		
+		receivedVotes = new Hashtable<>();
+
+		receivedVotesCnt = new AtomicInteger(0);
 		addBehaviour(handleMessages());
 
         ArrayList<DFAgentDescription> foundAgent = new ArrayList<>(
@@ -60,7 +73,31 @@ public class Ballot extends BaseAgent {
 					}
 
 					setupBallot();
-				} else {
+
+				} else if (msg.getContent().startsWith(Integer.toString(votingCode))) {
+					Types voterType = registeredVoters.get(msg.getSender());
+					int vote = Integer.parseInt(splittedMsg[1]);
+
+					if(!registeredCandidates.containsKey(vote)) vote = -1;
+					
+					synchronized(lock){
+						Map<Types, Integer> updateMap = receivedVotes.get(vote);
+
+						if (updateMap == null) updateMap = new EnumMap<>(Types.class);
+						
+						updateMap.put(voterType, updateMap.get(voterType) == null? 1 : updateMap.get(voterType) + 1);
+						receivedVotes.put(vote, updateMap);
+						
+						if(receivedVotesCnt.incrementAndGet() == 1){
+							addBehaviour(timeoutBehaviour("collectVotes", TIMEOUT_LIMIT*3));
+						}
+						
+						if(receivedVotesCnt.get() == registeredVoters.size()){
+							votesCollected = true;
+							computeResults();
+						}
+					}
+                } else {
 					logger.log(Level.INFO, 
 							String.format("%s %s %s", getLocalName(), UNEXPECTED_MSG, msg.getSender().getLocalName()));
 				}
@@ -68,9 +105,26 @@ public class Ballot extends BaseAgent {
 		};
 	}
 
+	@Override
+	protected WakerBehaviour timeoutBehaviour( String motivation, long timeout) {
+		return new WakerBehaviour(this, timeout) {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			protected void onWake() {
+				if ( motivation.equals("collectVotes") && !votesCollected) {
+					votesCollected = true;
+					logger.log(Level.WARNING,
+							String.format("%s Agent voting time window ended! %s", ANSI_YELLOW, ANSI_RESET));
+					computeResults();
+				}
+			}
+		};
+	}
+
 	private void setupBallot () {
 		receivedVotes = new Hashtable<>();
-		registeredCandidates = new ArrayList<>();
+		registeredCandidates = new Hashtable<>();
 		registeredVoters = new Hashtable<>();
 
 		ArrayList<DFAgentDescription> foundVoters = new ArrayList<>(
@@ -86,7 +140,7 @@ public class Ballot extends BaseAgent {
 					if ( Arrays.toString(Types.values()).contains(el.getName()) ) {
 						registeredVoters.put(voter.getName(), Types.valueOf(el.getName()));
 					} else if ( el.getName().equals("Candidate") ) {
-						registeredCandidates.add(voter.getName());
+						registeredCandidates.put( Integer.parseInt(el.getType()), voter.getName());
 					}
 				}
 			}
@@ -95,13 +149,13 @@ public class Ballot extends BaseAgent {
 			e.printStackTrace();
 		}
 
-		if ( registeredCandidates.size() < 1 || registeredVoters.size() < 2 ) {
+		if ( registeredCandidates.isEmpty() || registeredVoters.size() < 2 ) {
 			logger.log(Level.WARNING, String.format("%s THERE CANNOT BE AN ELECTION WITH NO CANDIDATES OR NOT ENOUGH QUORUM %s", ANSI_YELLOW, ANSI_RESET));
 			
 			ACLMessage msg = new ACLMessage(ACLMessage.INFORM);
 			
 			ArrayList<DFAgentDescription> foundMediators = findMediators( new String[]{ Integer.toString(votingCode) } );
-			if ( foundMediators.size() > 0 ) {
+			if ( !foundMediators.isEmpty() ) {
 				for ( DFAgentDescription fndMed : foundMediators ) {
 					msg.addReceiver(fndMed.getName());
 				}
@@ -123,7 +177,7 @@ public class Ballot extends BaseAgent {
 			ACLMessage msg = new ACLMessage(ACLMessage.INFORM);
 				
 			ArrayList<DFAgentDescription> foundMediators = findMediators( new String[]{ Integer.toString(votingCode) } );
-			if ( foundMediators.size() > 0 ) {
+			if ( !foundMediators.isEmpty() ) {
 				for ( DFAgentDescription fndMed : foundMediators ) {
 					msg.addReceiver(fndMed.getName());
 				}
@@ -135,5 +189,60 @@ public class Ballot extends BaseAgent {
 			logger.log(Level.SEVERE, String.format("%s ERROR WHILE PERFORMING BALLOT SETUP %s", ANSI_RED, ANSI_RESET));
 			e.printStackTrace();
 		}
+	}
+
+	private void computeResults() {
+		HashMap<Integer, Integer> results = new HashMap<>();
+
+		int sum;
+
+		int maxVote = -1;
+
+		ArrayList<Integer> winnerCandidates = new ArrayList<>();
+
+		for(Map.Entry<Integer, Map<Types, Integer>> entry : receivedVotes.entrySet()){
+			sum = 0;
+			Map<Types, Integer> votesCount = entry.getValue();
+
+			for(Map.Entry<Types, Integer> entry2 : votesCount.entrySet()){
+				sum += votingWeights.get(entry2.getKey()) * entry2.getValue();
+			}
+
+			results.put(entry.getKey(), sum);
+			
+			if(sum == maxVote){
+				winnerCandidates.add(entry.getKey());
+			}
+			
+			if(sum > maxVote){
+				maxVote = sum;
+				winnerCandidates.clear();
+				winnerCandidates.add(entry.getKey());
+			}
+
+		}
+	
+		ACLMessage msg = new ACLMessage(ACLMessage.INFORM);
+
+		msg.addReceiver(findMediators(new String[]{ Integer.toString(votingCode) }).get(0).getName());
+
+		StringBuilder strBld = new StringBuilder();
+		for ( Integer winner : winnerCandidates ) {
+			strBld.append(String.format("%d ", winner));
+		}
+
+		String winners = strBld.toString().trim();
+		msg.setContent(String.format("%s WinnersCount %d VotesCount %d Winners %s", "RESULTS", winnerCandidates.size(), maxVote, winners));
+		send(msg);
+
+		strBld.setLength(0);
+		for ( Map.Entry<Integer,Integer> entry : results.entrySet() ) {
+			strBld.append(String.format("%d %d ", entry.getKey(), entry.getValue()));
+		}
+
+		String voteLog = strBld.toString().trim();
+		msg.setContent(String.format("%s Size %d %s", "ELECTIONLOG", results.size(),voteLog));
+		send(msg);
+
 	}
 }

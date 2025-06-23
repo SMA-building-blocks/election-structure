@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 
 import jade.core.AID;
@@ -22,7 +23,8 @@ public class Voter extends BaseAgent {
 	private Hashtable<String, String> recvProposals;
 	private int candidatesCount; 
 	private int candidatesExpected;
-	int selectionMethod;
+	private int selectionMethod;
+	private int myCandidatureCode = -1;;
 
 	@Override
 	protected void setup() {
@@ -37,14 +39,6 @@ public class Voter extends BaseAgent {
 		this.registerDF(this, "Voter", "voter");
 
 		this.registerDF(this, myVotingType.toString(), myVotingType.toString());
-
-		if ( !randomAgentMalfunction || rand.nextInt(11) != 10 ) {
-			logger.log(Level.INFO, String.format("I'm the %s!", getLocalName()));
-		} else {
-			brokenAgent = true;
-			logger.log(Level.WARNING,
-				String.format("%s I'm agent %s and I have a malfunction! %s", ANSI_CYAN, getLocalName(), ANSI_RESET));
-		}
 
 		if ( rand.nextInt(11) <= 5 ) {
 			logger.log(Level.INFO, String.format("I'm the %s!", getLocalName()));
@@ -73,7 +67,7 @@ public class Voter extends BaseAgent {
 					
 					try {
 						AID foundMediator = null;
-						if ( foundAgents.size() > 0 ) {
+						if ( !foundAgents.isEmpty() ) {
 							foundMediator = foundAgents.get(0).getName();
 							
 							msg2.addReceiver(foundMediator);
@@ -92,6 +86,7 @@ public class Voter extends BaseAgent {
 					votingCode = Integer.parseInt(splittedMsg[1]);
 					recvProposals = new Hashtable<>();
 					candidatesCount = 0;
+					myCandidatureCode = -1;
 					
 					registerDF(myAgent, Integer.toString(votingCode), Integer.toString(votingCode));
 					
@@ -135,12 +130,22 @@ public class Voter extends BaseAgent {
 						requestCandidateCode();
 
 				} else if ( msg.getContent().startsWith("CANDIDCODE") ) {
-					registerCandidature(myAgent, Integer.parseInt(splittedMsg[1]), msg);
+					myCandidatureCode = Integer.parseInt(splittedMsg[1]);
+					registerCandidature(myAgent, myCandidatureCode, msg);
 				} else if ( msg.getContent().startsWith("CANDIDATE") ) { 
 					String prop = msg.getContent().substring(msg.getContent().indexOf(PROPOSAL) + PROPOSAL.length() + 1); 
 
 					recvProposals.put(splittedMsg[1], prop);
 					candidatesCount++;
+				} else if ( msg.getContent().startsWith("RESULTS") ) { 
+					String logContent = String.format("%s RECEIVED THE RESULTS OF ELECTION %d!", getLocalName(), votingCode);
+
+					for( int i = 6; i < splittedMsg.length; i++ ){
+						if ( candidate && Integer.parseInt(splittedMsg[i]) == myCandidatureCode ) 
+							logContent = String.format("%s I'M %s AND I WON THE ELECTION WITH CODE %d! %s", ANSI_GREEN, getLocalName(), votingCode, ANSI_RESET);
+					}
+
+					logger.log(Level.INFO, logContent);
 				} else {
 					logger.log(Level.INFO, 
 							String.format("%s %s %s", getLocalName(), UNEXPECTED_MSG, msg.getSender().getLocalName()));
@@ -196,7 +201,7 @@ public class Voter extends BaseAgent {
 
 		String sendMsg = String.format("%s IN %d", REGISTERED, votingCode);
 
-		if ( candidate == true )
+		if ( candidate )
 			sendMsg += " AND CANDIDATE";
 
 		informMsg.setContent(sendMsg);
@@ -263,20 +268,21 @@ public class Voter extends BaseAgent {
 
 	private String chooseVote(){
 		
-		String selectedCandidate = new String();
+		String selectedCandidate = "";
 		
-		int max =-1, min = Integer.MAX_VALUE;
+		int max =-1;
+		int min = Integer.MAX_VALUE;
 		int len;
-		for(String candID : recvProposals.keySet()){
-			len = recvProposals.get(candID).length();
+		for(Map.Entry<String,String> entry : recvProposals.entrySet()){
+			len = entry.getValue().length();
 			if(len > max && selectionMethod == 1){
 				max = len;
-				selectedCandidate = candID;
+				selectedCandidate = entry.getKey();
 			}
 
 			if(len < min && selectionMethod == 0){
 				min = len;
-				selectedCandidate = candID;
+				selectedCandidate = entry.getKey();
 			}
 		}
 		
