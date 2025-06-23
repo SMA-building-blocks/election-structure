@@ -24,7 +24,7 @@ public class Voter extends BaseAgent {
 	private int candidatesCount; 
 	private int candidatesExpected;
 	private int selectionMethod;
-	private int myCandidatureCode = -1;;
+	private int myCandidatureCode = -1;
 
 	@Override
 	protected void setup() {
