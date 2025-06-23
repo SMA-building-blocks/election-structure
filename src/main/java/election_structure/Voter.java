@@ -40,14 +40,6 @@ public class Voter extends BaseAgent {
 
 		this.registerDF(this, myVotingType.toString(), myVotingType.toString());
 
-		if ( !randomAgentMalfunction || rand.nextInt(11) != 10 ) {
-			logger.log(Level.INFO, String.format("I'm the %s!", getLocalName()));
-		} else {
-			brokenAgent = true;
-			logger.log(Level.WARNING,
-				String.format("%s I'm agent %s and I have a malfunction! %s", ANSI_CYAN, getLocalName(), ANSI_RESET));
-		}
-
 		if ( rand.nextInt(11) <= 5 ) {
 			logger.log(Level.INFO, String.format("I'm the %s!", getLocalName()));
 		} else {

@@ -36,7 +36,6 @@ public class App extends BaseAgent {
 		int votersQuorum = 0;
 		if (args != null && args.length > 0) {
 			votersQuorum = Integer.parseInt(args[0].toString());
-			randomAgentMalfunction = (Integer.parseInt(args[1].toString()) > 0);
 		}
 
 		int votingStarter = rand.nextInt(votersQuorum);

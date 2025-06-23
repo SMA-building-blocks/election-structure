@@ -62,7 +62,6 @@ public abstract class BaseAgent extends Agent {
 	protected static final Logger logger = Logger.getLogger(BaseAgent.class.getName());
 
 	protected static final Long TIMEOUT_LIMIT = 1000L;
-	protected static boolean randomAgentMalfunction = false;
 	protected boolean brokenAgent = false;
 	protected boolean candidate = false;
 
