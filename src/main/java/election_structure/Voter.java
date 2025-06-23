@@ -24,6 +24,7 @@ public class Voter extends BaseAgent {
 	private int candidatesCount; 
 	private int candidatesExpected;
 	private int selectionMethod;
+	private int myCandidatureCode = -1;;
 
 	@Override
 	protected void setup() {
@@ -93,6 +94,7 @@ public class Voter extends BaseAgent {
 					votingCode = Integer.parseInt(splittedMsg[1]);
 					recvProposals = new Hashtable<>();
 					candidatesCount = 0;
+					myCandidatureCode = -1;
 					
 					registerDF(myAgent, Integer.toString(votingCode), Integer.toString(votingCode));
 					
@@ -136,12 +138,22 @@ public class Voter extends BaseAgent {
 						requestCandidateCode();
 
 				} else if ( msg.getContent().startsWith("CANDIDCODE") ) {
-					registerCandidature(myAgent, Integer.parseInt(splittedMsg[1]), msg);
+					myCandidatureCode = Integer.parseInt(splittedMsg[1]);
+					registerCandidature(myAgent, myCandidatureCode, msg);
 				} else if ( msg.getContent().startsWith("CANDIDATE") ) { 
 					String prop = msg.getContent().substring(msg.getContent().indexOf(PROPOSAL) + PROPOSAL.length() + 1); 
 
 					recvProposals.put(splittedMsg[1], prop);
 					candidatesCount++;
+				} else if ( msg.getContent().startsWith("RESULTS") ) { 
+					String logContent = String.format("%s RECEIVED THE RESULTS OF ELECTION %d!", getLocalName(), votingCode);
+
+					for( int i = 6; i < splittedMsg.length; i++ ){
+						if ( candidate && Integer.parseInt(splittedMsg[i]) == myCandidatureCode ) 
+							logContent = String.format("%s I'M %s AND I WON THE ELECTION WITH CODE %d! %s", ANSI_GREEN, getLocalName(), votingCode, ANSI_RESET);
+					}
+
+					logger.log(Level.INFO, logContent);
 				} else {
 					logger.log(Level.INFO, 
 							String.format("%s %s %s", getLocalName(), UNEXPECTED_MSG, msg.getSender().getLocalName()));

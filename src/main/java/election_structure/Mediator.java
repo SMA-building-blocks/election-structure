@@ -122,8 +122,6 @@ public class Mediator extends BaseAgent {
 				} else if(msg.getContent().startsWith("RESULTS") ) {
 
 					informWinner(msg.getContent());
-					
-					System.out.println(msg.getContent());
 
 					String winnersCnt = splittedMsg[2];
 					String winnersVote = splittedMsg[4];
