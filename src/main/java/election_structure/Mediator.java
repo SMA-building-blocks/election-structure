@@ -24,10 +24,8 @@ public class Mediator extends BaseAgent {
 	private int totalQuorum = 0;
 	private Boolean ballotCreated = false;
 	private Boolean ballotRequested = false;
-	
-	private Hashtable<AID, Integer> votingLog;
+
 	private Hashtable<AID, Candidature> candidatures;
-	private ArrayList<AID> winners;
 	private ArrayList<AID> preCandidates;
 	private Stack<Integer> candidateCodes;
 
@@ -53,9 +51,6 @@ public class Mediator extends BaseAgent {
 				if (msg.getContent().startsWith(START)) {
 					
 					votingCode = votingCodeGenerator();
-					
-					votingLog = new Hashtable<>();
-					winners = new ArrayList<>();
 
 					setupVotingWeights();
 					genCandidateCodes();
@@ -126,18 +121,30 @@ public class Mediator extends BaseAgent {
 
 				} else if(msg.getContent().startsWith("RESULTS") ) {
 
+					informWinner(msg.getContent());
 					
 					System.out.println(msg.getContent());
-					/*
-					 * TODO: implement what to do with the results
-					 */
+
+					String winnersCnt = splittedMsg[2];
+					String winnersVote = splittedMsg[4];
+
+					String winnersCode = "";
+
+					for(int i = 6; i < splittedMsg.length; i++){
+						winnersCode += splittedMsg[i] + " ";
+					}
+
+					String results = String.format(" ELECTION RESULTS FOR VOTING %d: \n", votingCode);
+					results = results.concat(String.format(" \t\tWinner count: %s\n",winnersCnt));
+					results = results.concat(String.format(" \t\tWinner received votes %s\n", winnersVote));
+					results = results.concat(String.format(" \t\tWinner Codes: %s ", winnersCode));
+
+					logger.log(Level.INFO, String.format("%s%s%s", ANSI_PURPLE, results, ANSI_RESET));
 
 				} else if(msg.getContent().startsWith("ELECTIONLOG") ) {
 
-					System.out.println(msg.getContent());
-					/*
-					 * TODO: implement what to do with the logs
-					 */
+					logger.log(Level.INFO, String.format("%s %s %s", ANSI_PURPLE, msg.getContent(), ANSI_RESET));
+
 				} else {
 					logger.log(Level.INFO, 
 							String.format("%s RECEIVED AN UNEXPECTED MESSAGE FROM %s", getLocalName(), msg.getSender().getLocalName()));
@@ -211,10 +218,24 @@ public class Mediator extends BaseAgent {
 		};
 	}
 	
-	private void informWinner(){
-		/*
-		 * TODO: when finished election broadcast the winner
-		 */
+	private void informWinner(String content){
+		ACLMessage msg2 = new ACLMessage(ACLMessage.INFORM);
+					
+		ArrayList<DFAgentDescription> foundVotingParticipants;
+		String [] types = { Integer.toString(votingCode), "voter" };
+
+		foundVotingParticipants = new ArrayList<>(
+				Arrays.asList(searchAgentByType(types)));
+
+		foundVotingParticipants.forEach(vot -> 
+			msg2.addReceiver(vot.getName())
+		);
+
+		msg2.setContent(content);
+		send(msg2);
+
+		logger.log(Level.INFO, 
+					String.format("%s %s SENT ELECTION RESULTS TO ALL VOTERS! %s", ANSI_PURPLE , getLocalName(), ANSI_RESET));
 	}
 
 	protected void resetVoting(Agent myAgent){
