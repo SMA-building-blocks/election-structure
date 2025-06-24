@@ -41,6 +41,7 @@ public abstract class BaseAgent extends Agent {
 	public static final String UNEXPECTED_MSG = "RECEIVED AN UNEXPECTED MESSAGE FROM";
 	public static final String CREATE = "CREATE";
 	public static final String CREATOR = "Creator";
+	public static final String VOTER = "voter";
 	public static final String QUORUM = "QUORUM";
 	public static final String CANDIDATURE = "CANDIDATURE";
 	public static final String PROPOSAL = "PROPOSAL";

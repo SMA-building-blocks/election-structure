@@ -112,7 +112,7 @@ public class Ballot extends BaseAgent {
 
 			@Override
 			protected void onWake() {
-				if ( motivation.equals("collectVotes") && !votesCollected) {
+				if ( motivation.equals("collectVotes") && Boolean.FALSE.equals(votesCollected)) {
 					votesCollected = true;
 					logger.log(Level.WARNING,
 							String.format("%s Agent voting time window ended! %s", ANSI_YELLOW, ANSI_RESET));

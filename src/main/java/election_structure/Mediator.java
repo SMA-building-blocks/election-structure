@@ -29,7 +29,7 @@ public class Mediator extends BaseAgent {
 	private Boolean ballotCreated = false;
 	private Boolean ballotRequested = false;
 
-	private Hashtable<AID, Candidature> candidatures;
+	private transient Hashtable<AID, Candidature> candidatures;
 	private ArrayList<AID> preCandidates;
 	private Stack<Integer> candidateCodes;
 
@@ -88,7 +88,7 @@ public class Mediator extends BaseAgent {
 						preCandidates.add(msg.getSender());
 					}
 
-					if ( (registeredQuorum == totalQuorum) && (preCandidates.isEmpty()) && !ballotRequested) {
+					if ( (registeredQuorum == totalQuorum) && (preCandidates.isEmpty()) && Boolean.FALSE.equals(ballotRequested)) {
 						createBallot();
 					} 
 
@@ -113,7 +113,7 @@ public class Mediator extends BaseAgent {
 						if ( votCode == votingCode ) {
 							startElection();
 						} else {
-							throw new Exception("Voting code does not match!");
+							throw new IllegalArgumentException("Voting code does not match!");
 						}
 					} catch ( Exception e ) {
 						logger.log(Level.SEVERE, String.format("%s ERROR WHILE PERFORMING BALLOT SETUP %s", ANSI_RED, ANSI_RESET));
@@ -127,15 +127,17 @@ public class Mediator extends BaseAgent {
 					String winnersCnt = splittedMsg[2];
 					String winnersVote = splittedMsg[4];
 
-					String winnersCode = "";
-
+					
+					StringBuilder bld = new StringBuilder();
+					
 					for(int i = 6; i < splittedMsg.length; i++){
-						winnersCode += splittedMsg[i] + " ";
+						bld.append(splittedMsg[i] + " ");
 					}
-
-					String results = String.format(" ELECTION RESULTS FOR VOTING %d: \n", votingCode);
-					results = results.concat(String.format(" \t\tWinner count: %s\n",winnersCnt));
-					results = results.concat(String.format(" \t\tWinner received votes %s\n", winnersVote));
+					String winnersCode = bld.toString();
+					
+					String results = String.format(" ELECTION RESULTS FOR VOTING %d: %n", votingCode);
+					results = results.concat(String.format(" \t\tWinner count: %s%n",winnersCnt));
+					results = results.concat(String.format(" \t\tWinner received votes %s%n", winnersVote));
 					results = results.concat(String.format(" \t\tWinner Codes: %s ", winnersCode));
 
 					logger.log(Level.INFO, String.format("%s%s%s", ANSI_PURPLE, results, ANSI_RESET));
@@ -183,7 +185,7 @@ public class Mediator extends BaseAgent {
 
 					preCandidates.remove(msg.getSender());
 
-					if ( (registeredQuorum == totalQuorum) && (preCandidates.isEmpty()) && !ballotRequested) {
+					if ( (registeredQuorum == totalQuorum) && (preCandidates.isEmpty()) && Boolean.FALSE.equals(ballotRequested)) {
 						createBallot();
 					} 
 
@@ -203,11 +205,11 @@ public class Mediator extends BaseAgent {
 
 			@Override
 			protected void onWake() {
-				if ( votingCode != -1 && motivation.equals("registration") && !ballotCreated ) {
+				if ( votingCode != -1 && motivation.equals("registration") && Boolean.FALSE.equals(ballotCreated) ) {
 						logger.log(Level.WARNING,
 							String.format("%s Agent registration timed out! %s", ANSI_YELLOW, ANSI_RESET));
 						createBallot();
-				} else if ( votingCode != -1 && motivation.equals("Create-Ballot") && !ballotCreated ){
+				} else if ( votingCode != -1 && motivation.equals("Create-Ballot") && Boolean.FALSE.equals(ballotCreated) ){
 						logger.log(Level.WARNING,
 							String.format("%s Ballot creation timed out! %s", ANSI_YELLOW, ANSI_RESET));
 						createBallot();
@@ -220,7 +222,7 @@ public class Mediator extends BaseAgent {
 		ACLMessage msg2 = new ACLMessage(ACLMessage.INFORM);
 					
 		ArrayList<DFAgentDescription> foundVotingParticipants;
-		String [] types = { Integer.toString(votingCode), "voter" };
+		String [] types = { Integer.toString(votingCode), VOTER };
 
 		foundVotingParticipants = new ArrayList<>(
 				Arrays.asList(searchAgentByType(types)));
@@ -247,7 +249,7 @@ public class Mediator extends BaseAgent {
 		candidateCodes = new Stack<>();
 
 		deleteAgentServices(myAgent, Integer.toString(votingCode), Integer.toString(votingCode));
-		deleteAgentServices(myAgent, "voter", "Candidate");
+		deleteAgentServices(myAgent, VOTER, "Candidate");
 
 		votingCode = -1;
 
@@ -290,7 +292,7 @@ public class Mediator extends BaseAgent {
 	private void startElection() {
 		try {
 			ArrayList<DFAgentDescription> foundVotingParticipants;
-			String [] types = { Integer.toString(votingCode), "voter" };
+			String [] types = { Integer.toString(votingCode), VOTER };
 
 			foundVotingParticipants = new ArrayList<>(
 					Arrays.asList(searchAgentByType(types)));
