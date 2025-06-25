@@ -18,8 +18,6 @@ public class Voter extends BaseAgent {
 
 	private static final long serialVersionUID = 1L;
 
-	private Types myVotingType = Types.COMMON_VOTER;
-
 	private Hashtable<String, String> recvProposals;
 	private int candidatesCount; 
 	private int candidatesExpected;
@@ -32,6 +30,7 @@ public class Voter extends BaseAgent {
 		logger.log(Level.INFO,String.format("I'm voter: %s", this.getLocalName()));
 
 		List<Types> possibleTypes = Arrays.asList(Types.values());
+		Types myVotingType = Types.COMMON_VOTER;
 
 		int randomIndex = rand.nextInt(possibleTypes.size());
 		myVotingType = possibleTypes.get(randomIndex);
@@ -59,99 +58,120 @@ public class Voter extends BaseAgent {
 			public void action () {
 				String [] splittedMsg = msg.getContent().split(" ");
 
-				if (msg.getContent().startsWith(START)) {
-					ACLMessage msg2 = new ACLMessage(ACLMessage.INFORM);
-					msg2.setContent(START);
+				switch ( splittedMsg[0] ) {
+					case START:
+						requestNewElection();
+						break;
+					case VOTEID:
+						prepareForElection(this.myAgent, msg, splittedMsg);
+						break;
+					case INVITE:
+						registerForElection(this.myAgent, msg, splittedMsg);
+						break;
+					case "CANDIDCODE":
+						myCandidatureCode = Integer.parseInt(splittedMsg[1]);
+						registerCandidature(myAgent, myCandidatureCode, msg);
+						break;
+					case "CANDIDATE":
+						String prop = msg.getContent().substring(msg.getContent().indexOf(PROPOSAL) + PROPOSAL.length() + 1); 
 
-					ArrayList<DFAgentDescription> foundAgents = findMediators( new String[]{} );
-					
-					try {
-						AID foundMediator = null;
-						if ( !foundAgents.isEmpty() ) {
-							foundMediator = foundAgents.get(0).getName();
-							
-							msg2.addReceiver(foundMediator);
-							
-							send(msg2);
-							logger.log(Level.INFO, String.format("%s SENT START MESSAGE TO %s", getLocalName(), foundMediator.getLocalName()));
-						}
-					} catch ( Exception any ) {
-						logger.log(Level.SEVERE, ANSI_RED + "ERROR WHILE SENDING MESSAGE" + ANSI_RESET);
-						any.printStackTrace();
-					}
-				} else if (msg.getContent().startsWith(VOTEID)) {
-					logger.log(Level.INFO, 
-							String.format("RECEIVED ELECTION ID FROM %s: %s", msg.getSender().getLocalName(), msg.getContent()));
-					
-					votingCode = Integer.parseInt(splittedMsg[1]);
-					recvProposals = new Hashtable<>();
-					candidatesCount = 0;
-					myCandidatureCode = -1;
-					
-					registerDF(myAgent, Integer.toString(votingCode), Integer.toString(votingCode));
-					
-					informVotingRegistration();
-					
-					ArrayList<DFAgentDescription> foundAgents = new ArrayList<>(
-							Arrays.asList(searchAgentByType("voter")));
-					
-					ACLMessage msg2 = new ACLMessage(ACLMessage.INFORM);
-					msg2.setContent(String.format("%s %s", INVITE, msg.getContent()));
-					
-					foundAgents.forEach(ag -> {
-						if ( !ag.getName().equals(myAgent.getAID())  ) {
-							msg2.addReceiver(ag.getName());
-						}
-					});
-					
-					ACLMessage reply = msg.createReply();
-					reply.setContent(String.format("%s QUORUM %d", INFORM, foundAgents.size()));
-					myAgent.send(reply);
-					
-					send(msg2);
-					logger.log(Level.INFO, String.format("%s SENT INVITE TO VOTERS!", getLocalName()));
-					
-					if ( candidate ) 
-						requestCandidateCode();
-					
-				} else if (msg.getContent().startsWith(INVITE)) {
-					logger.log(Level.INFO, 
-							String.format("RECEIVED ELECTION INFO FROM %s: %s", msg.getSender().getLocalName(), msg.getContent()));		
-
-					votingCode = Integer.parseInt(splittedMsg[2]);
-					recvProposals = new Hashtable<>();
-					candidatesCount = 0;
-					
-					registerDF(myAgent, Integer.toString(votingCode), Integer.toString(votingCode));
-					
-					informVotingRegistration();
-
-					if ( candidate ) 
-						requestCandidateCode();
-
-				} else if ( msg.getContent().startsWith("CANDIDCODE") ) {
-					myCandidatureCode = Integer.parseInt(splittedMsg[1]);
-					registerCandidature(myAgent, myCandidatureCode, msg);
-				} else if ( msg.getContent().startsWith("CANDIDATE") ) { 
-					String prop = msg.getContent().substring(msg.getContent().indexOf(PROPOSAL) + PROPOSAL.length() + 1); 
-
-					recvProposals.put(splittedMsg[1], prop);
-					candidatesCount++;
-				} else if ( msg.getContent().startsWith("RESULTS") ) { 
-					String logContent = String.format("%s RECEIVED THE RESULTS OF ELECTION %d!", getLocalName(), votingCode);
-
-					for( int i = 6; i < splittedMsg.length; i++ ){
-						if ( candidate && Integer.parseInt(splittedMsg[i]) == myCandidatureCode ) 
-							logContent = String.format("%s I'M %s AND I WON THE ELECTION WITH CODE %d! %s", ANSI_GREEN, getLocalName(), votingCode, ANSI_RESET);
-					}
-
-					logger.log(Level.INFO, logContent);
-				} else {
-					logger.log(Level.INFO, 
+						recvProposals.put(splittedMsg[1], prop);
+						candidatesCount++;
+						break;
+					case "RESULT":
+						logger.log(Level.INFO, getLogContent(splittedMsg));
+						break;
+					default:
+						logger.log(Level.INFO, 
 							String.format("%s %s %s", getLocalName(), UNEXPECTED_MSG, msg.getSender().getLocalName()));
+						break;
 				}
 			}
 		};
+	}
+
+	private void registerForElection(Agent myAgent, ACLMessage msg, String[] splittedMsg) {
+		logger.log(Level.INFO, 
+				String.format("RECEIVED ELECTION INFO FROM %s: %s", msg.getSender().getLocalName(), msg.getContent()));		
+
+		votingCode = Integer.parseInt(splittedMsg[2]);
+		recvProposals = new Hashtable<>();
+		candidatesCount = 0;
+		
+		registerDF(myAgent, Integer.toString(votingCode), Integer.toString(votingCode));
+		
+		informVotingRegistration();
+
+		if ( candidate ) 
+			requestCandidateCode();
+	}
+
+	private void prepareForElection(Agent myAgent, ACLMessage msg, String[] splittedMsg) {
+		logger.log(Level.INFO, 
+				String.format("RECEIVED ELECTION ID FROM %s: %s", msg.getSender().getLocalName(), msg.getContent()));
+		
+		votingCode = Integer.parseInt(splittedMsg[1]);
+		recvProposals = new Hashtable<>();
+		candidatesCount = 0;
+		myCandidatureCode = -1;
+		
+		registerDF(myAgent, Integer.toString(votingCode), Integer.toString(votingCode));
+		
+		informVotingRegistration();
+		
+		ArrayList<DFAgentDescription> foundAgents = new ArrayList<>(
+				Arrays.asList(searchAgentByType("voter")));
+		
+		ACLMessage msg2 = new ACLMessage(ACLMessage.INFORM);
+		msg2.setContent(String.format("%s %s", INVITE, msg.getContent()));
+		
+		foundAgents.forEach(ag -> {
+			if ( !ag.getName().equals(myAgent.getAID())  ) {
+				msg2.addReceiver(ag.getName());
+			}
+		});
+		
+		ACLMessage reply = msg.createReply();
+		reply.setContent(String.format("%s QUORUM %d", INFORM, foundAgents.size()));
+		myAgent.send(reply);
+		
+		send(msg2);
+		logger.log(Level.INFO, String.format("%s SENT INVITE TO VOTERS!", getLocalName()));
+		
+		if ( candidate ) 
+			requestCandidateCode();
+	}
+
+	private void requestNewElection() {
+		ACLMessage msg2 = new ACLMessage(ACLMessage.INFORM);
+		msg2.setContent(START);
+
+		ArrayList<DFAgentDescription> foundAgents = findMediators( new String[]{} );
+		
+		try {
+			AID foundMediator = null;
+			if ( !foundAgents.isEmpty() ) {
+				foundMediator = foundAgents.get(0).getName();
+				
+				msg2.addReceiver(foundMediator);
+				
+				send(msg2);
+				logger.log(Level.INFO, String.format("%s SENT START MESSAGE TO %s", getLocalName(), foundMediator.getLocalName()));
+			}
+		} catch ( Exception any ) {
+			logger.log(Level.SEVERE, ANSI_RED + "ERROR WHILE SENDING MESSAGE" + ANSI_RESET);
+			any.printStackTrace();
+		}
+	}
+
+	private String getLogContent(String[] splittedMsg) {
+		String logContent = String.format("%s RECEIVED THE RESULTS OF ELECTION %d!", getLocalName(), votingCode);
+
+		for( int i = 6; i < splittedMsg.length; i++ ){
+			if ( candidate && Integer.parseInt(splittedMsg[i]) == myCandidatureCode ) 
+				logContent = String.format("%s I'M %s AND I WON THE ELECTION WITH CODE %d! %s", ANSI_GREEN, getLocalName(), votingCode, ANSI_RESET);
+		}
+		return logContent;
 	}
 	
 	@Override

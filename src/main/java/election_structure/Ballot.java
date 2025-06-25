@@ -11,6 +11,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 
 import jade.core.AID;
+import jade.core.Agent;
 import jade.core.behaviours.OneShotBehaviour;
 import jade.core.behaviours.WakerBehaviour;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
@@ -65,38 +66,18 @@ public class Ballot extends BaseAgent {
 					
 					votingCode = Integer.parseInt(splittedMsg[1]);
 					
-					registerDF(myAgent, Integer.toString(votingCode), Integer.toString(votingCode));
+					
 
-					votingWeights = new Hashtable<>();
-					for ( int i = 4; i < splittedMsg.length; i += 2 ) {
-						votingWeights.put(Types.valueOf(splittedMsg[i]), Integer.parseInt(splittedMsg[i+1]));
-					}
-
-					setupBallot();
+					setupBallot(this.myAgent, splittedMsg);
 
 				} else if (msg.getContent().startsWith(Integer.toString(votingCode))) {
 					Types voterType = registeredVoters.get(msg.getSender());
 					int vote = Integer.parseInt(splittedMsg[1]);
 
-					if(!registeredCandidates.containsKey(vote)) vote = -1;
+					if ( !registeredCandidates.containsKey(vote) ) 
+						vote = -1;
 					
-					synchronized(lock){
-						Map<Types, Integer> updateMap = receivedVotes.get(vote);
-
-						if (updateMap == null) updateMap = new EnumMap<>(Types.class);
-						
-						updateMap.put(voterType, updateMap.get(voterType) == null? 1 : updateMap.get(voterType) + 1);
-						receivedVotes.put(vote, updateMap);
-						
-						if(receivedVotesCnt.incrementAndGet() == 1){
-							addBehaviour(timeoutBehaviour("collectVotes", TIMEOUT_LIMIT*3));
-						}
-						
-						if(receivedVotesCnt.get() == registeredVoters.size()){
-							votesCollected = true;
-							computeResults();
-						}
-					}
+					registerVote(voterType, vote);
                 } else {
 					logger.log(Level.INFO, 
 							String.format("%s %s %s", getLocalName(), UNEXPECTED_MSG, msg.getSender().getLocalName()));
@@ -122,10 +103,37 @@ public class Ballot extends BaseAgent {
 		};
 	}
 
-	private void setupBallot () {
+	private void registerVote(Types voterType, int vote) {
+		synchronized(lock){
+			Map<Types, Integer> updateMap = receivedVotes.get(vote);
+
+			if (updateMap == null) updateMap = new EnumMap<>(Types.class);
+			
+			updateMap.put(voterType, updateMap.get(voterType) == null? 1 : updateMap.get(voterType) + 1);
+			receivedVotes.put(vote, updateMap);
+			
+			if(receivedVotesCnt.incrementAndGet() == 1){
+				addBehaviour(timeoutBehaviour("collectVotes", TIMEOUT_LIMIT*3));
+			}
+			
+			if(receivedVotesCnt.get() == registeredVoters.size()){
+				votesCollected = true;
+				computeResults();
+			}
+		}
+	}
+
+	private void setupBallot (Agent myAgent, String[] splittedMsg) {
 		receivedVotes = new Hashtable<>();
 		registeredCandidates = new Hashtable<>();
 		registeredVoters = new Hashtable<>();
+
+		registerDF(myAgent, Integer.toString(votingCode), Integer.toString(votingCode));
+
+		votingWeights = new Hashtable<>();
+		for ( int i = 4; i < splittedMsg.length; i += 2 ) {
+			votingWeights.put(Types.valueOf(splittedMsg[i]), Integer.parseInt(splittedMsg[i+1]));
+		}
 
 		ArrayList<DFAgentDescription> foundVoters = new ArrayList<>(
 			Arrays.asList(searchAgentByType(Integer.toString(votingCode))));
