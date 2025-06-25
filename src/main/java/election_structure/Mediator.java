@@ -117,29 +117,24 @@ public class Mediator extends BaseAgent {
 			int votCode = Integer.parseInt(splittedMsg[1]);
 
 			if ( votCode == votingCode ) {
-				try {
-					ArrayList<DFAgentDescription> foundVotingParticipants;
-					String [] types = { Integer.toString(votingCode), VOTER };
-		
-					foundVotingParticipants = new ArrayList<>(
-							Arrays.asList(searchAgentByType(types)));
-		
-					informCandidatesProposals(foundVotingParticipants);
-		
-					ACLMessage requestVoteMsg = new ACLMessage(ACLMessage.REQUEST);
-					requestVoteMsg.setContent(String.format("%s VOTE FOR %d WITH %d CANDIDATES", REQUEST, votingCode, candidatures.size()));
-					
-					foundVotingParticipants.forEach(ag -> 
-						requestVoteMsg.addReceiver(ag.getName())
-					);
-					
-					send(requestVoteMsg);
-					logger.log(Level.INFO, 
-							String.format("%s REQUESTED A VOTE FOR ALL %d VOTERS!", getLocalName(), foundVotingParticipants.size()));
-				} catch ( Exception e ) {
-					logger.log(Level.SEVERE, String.format("%s ERROR WHILE INFORMING ELECTION START TO VOTERS! %s", ANSI_RED, ANSI_RESET));
-					e.printStackTrace();
-				}
+				ArrayList<DFAgentDescription> foundVotingParticipants;
+				String [] types = { Integer.toString(votingCode), VOTER };
+	
+				foundVotingParticipants = new ArrayList<>(
+					Arrays.asList(searchAgentByType(types)));
+	
+				informCandidatesProposals(foundVotingParticipants);
+	
+				ACLMessage requestVoteMsg = new ACLMessage(ACLMessage.REQUEST);
+				requestVoteMsg.setContent(String.format("%s VOTE FOR %d WITH %d CANDIDATES", REQUEST, votingCode, candidatures.size()));
+				
+				foundVotingParticipants.forEach(ag -> 
+					requestVoteMsg.addReceiver(ag.getName())
+				);
+				
+				send(requestVoteMsg);
+				logger.log(Level.INFO, 
+					String.format("%s REQUESTED A VOTE FOR ALL %d VOTERS!", getLocalName(), foundVotingParticipants.size()));
 			} else {
 				throw new IllegalArgumentException("Voting code does not match!");
 			}

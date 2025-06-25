@@ -30,10 +30,9 @@ public class Voter extends BaseAgent {
 		logger.log(Level.INFO,String.format("I'm voter: %s", this.getLocalName()));
 
 		List<Types> possibleTypes = Arrays.asList(Types.values());
-		Types myVotingType = Types.COMMON_VOTER;
 
 		int randomIndex = rand.nextInt(possibleTypes.size());
-		myVotingType = possibleTypes.get(randomIndex);
+		Types myVotingType = possibleTypes.get(randomIndex);
 		
 		this.registerDF(this, "Voter", "voter");
 

@@ -161,10 +161,8 @@ public class Ballot extends BaseAgent {
 			ACLMessage msg = new ACLMessage(ACLMessage.INFORM);
 			
 			ArrayList<DFAgentDescription> foundMediators = findMediators( new String[]{ Integer.toString(votingCode) } );
-			if ( !foundMediators.isEmpty() ) {
-				for ( DFAgentDescription fndMed : foundMediators ) {
-					msg.addReceiver(fndMed.getName());
-				}
+			for ( DFAgentDescription fndMed : foundMediators ) {
+				msg.addReceiver(fndMed.getName());
 			}
 
 			msg.setContent(String.format("FAILURE %d", votingCode));
