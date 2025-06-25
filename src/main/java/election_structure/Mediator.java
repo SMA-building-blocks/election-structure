@@ -52,105 +52,150 @@ public class Mediator extends BaseAgent {
 			public void action () {
 				String [] splittedMsg = msg.getContent().split(" ");
 
-				if (msg.getContent().startsWith(START)) {
-					
-					votingCode = votingCodeGenerator();
-
-					setupVotingWeights();
-					genCandidateCodes();
-
-					registerDF(myAgent, Integer.toString(votingCode), Integer.toString(votingCode));
-					
-					registeredQuorum = 0;
-
-					logger.log(Level.INFO, String.format("%s AGENT GENERATED ELECTION WITH CODE %d!", getLocalName(), votingCode));
-					
-					ACLMessage msg2 = msg.createReply();
-
-					msg2.setContent(String.format("VOTEID %d", votingCode));
-
-					send(msg2);
-					logger.log(Level.INFO,  String.format("%s SENT ELECTION CODE TO %s", getLocalName(), msg.getSender().getLocalName()));
-					
-					candidatures = new Hashtable<>();
-					preCandidates = new ArrayList<>();
-				} else if ( msg.getContent().startsWith(INFORM) ) {
-					if (splittedMsg[1].equals(QUORUM)) {
-						addBehaviour(timeoutBehaviour( "registration", TIMEOUT_LIMIT));
-						totalQuorum = Integer.parseInt(splittedMsg[2]);
-					}
-
-				} else if ( msg.getContent().startsWith(REGISTERED) ) {
-					if( splittedMsg[2].startsWith(Integer.toString(votingCode)) )
-						registeredQuorum++;
-
-					if ( msg.getContent().endsWith("CANDIDATURE") ) {
-						preCandidates.add(msg.getSender());
-					}
-
-					if ( (registeredQuorum == totalQuorum) && (preCandidates.isEmpty()) && Boolean.FALSE.equals(ballotRequested)) {
-						createBallot();
-					} 
-
-				} else if(msg.getContent().startsWith("CHECK")){
-
-					ballotCreated = true;
-					ACLMessage msg2 = msg.createReply();
-
-					StringBuilder strBld = new StringBuilder();
-					for ( Map.Entry<Types,Integer> entry : votingWeights.entrySet() ) {
-						strBld.append(String.format("%s %d ", entry.getKey().toString(), entry.getValue()));
-					}
-
-					msg2.setContent(String.format("VOTEID %d WEIGHTS %d %s", votingCode, votingWeights.size(), strBld.toString().trim()));
-					send(msg2);
-				} else if ( msg.getContent().startsWith("FAILURE") ) { 
-					resetElection(myAgent);
-				} else if ( msg.getContent().startsWith("READY") ) {
-					try {
-						int votCode = Integer.parseInt(splittedMsg[1]);
-
-						if ( votCode == votingCode ) {
-							startElection();
-						} else {
-							throw new IllegalArgumentException("Voting code does not match!");
+				switch ( splittedMsg[0] ) {
+					case START:
+						createElection(this.myAgent, msg);
+						break;
+					case INFORM:
+						if (splittedMsg[1].equals(QUORUM)) {
+							addBehaviour(timeoutBehaviour( "registration", TIMEOUT_LIMIT));
+							totalQuorum = Integer.parseInt(splittedMsg[2]);
 						}
-					} catch ( Exception e ) {
-						logger.log(Level.SEVERE, String.format("%s ERROR WHILE PERFORMING BALLOT SETUP %s", ANSI_RED, ANSI_RESET));
-						e.printStackTrace();
-					}
-
-				} else if(msg.getContent().startsWith("RESULTS") ) {
-
-					informWinner(msg.getContent());
-
-					String winnersCnt = splittedMsg[2];
-					String winnersVote = splittedMsg[4];
-
-					
-					StringBuilder bld = new StringBuilder();
-					
-					for(int i = 6; i < splittedMsg.length; i++){
-						bld.append(splittedMsg[i] + " ");
-					}
-					String winnersCode = bld.toString();
-					
-					String results = String.format(" ELECTION RESULTS FOR VOTING %d: %n", votingCode);
-					results = results.concat(String.format(" \t\tWinner count: %s%n",winnersCnt));
-					results = results.concat(String.format(" \t\tWinner received votes %s%n", winnersVote));
-					results = results.concat(String.format(" \t\tWinner Codes: %s ", winnersCode));
-
-					logger.log(Level.INFO, String.format("%s%s%s", ANSI_PURPLE, results, ANSI_RESET));
-
-				} else if(msg.getContent().startsWith("ELECTIONLOG") ) {
-					logger.log(Level.INFO, String.format("%s %s %s", ANSI_PURPLE, msg.getContent(), ANSI_RESET));
-					resetElection(myAgent);
-				} else {
-					logger.log(Level.INFO, 
+						break;
+					case REGISTERED:
+						verifyElectionStatus(msg, splittedMsg); 
+						break;
+					case "CHECK":
+						setupBallot(msg);
+						break;
+					case "FAILURE":
+						resetElection(myAgent);
+						break;
+					case "READY":
+						startElection(splittedMsg);
+						break;
+					case "RESULTS":
+						processElectionResults(msg, splittedMsg);
+						break;
+					case "ELECTIONLOG":
+						logger.log(Level.INFO, String.format("%s %s %s", ANSI_PURPLE, msg.getContent(), ANSI_RESET));
+						resetElection(myAgent);
+						break;
+					default:
+						logger.log(Level.INFO, 
 							String.format("%s RECEIVED AN UNEXPECTED MESSAGE FROM %s", getLocalName(), msg.getSender().getLocalName()));
+						break;
 				}
 			}
 		};
+	}
+
+	private void processElectionResults(ACLMessage msg, String[] splittedMsg) {
+		informWinner(msg.getContent());
+
+		String winnersCnt = splittedMsg[2];
+		String winnersVote = splittedMsg[4];
+
+		
+		StringBuilder bld = new StringBuilder();
+		
+		for(int i = 6; i < splittedMsg.length; i++){
+			bld.append(splittedMsg[i] + " ");
+		}
+		String winnersCode = bld.toString();
+		
+		String results = String.format(" ELECTION RESULTS FOR VOTING %d: %n", votingCode);
+		results = results.concat(String.format(" \t\tWinner count: %s%n",winnersCnt));
+		results = results.concat(String.format(" \t\tWinner received votes %s%n", winnersVote));
+		results = results.concat(String.format(" \t\tWinner Codes: %s ", winnersCode));
+
+		logger.log(Level.INFO, String.format("%s%s%s", ANSI_PURPLE, results, ANSI_RESET));
+	}
+
+	private void startElection(String[] splittedMsg) {
+		try {
+			int votCode = Integer.parseInt(splittedMsg[1]);
+
+			if ( votCode == votingCode ) {
+				try {
+					ArrayList<DFAgentDescription> foundVotingParticipants;
+					String [] types = { Integer.toString(votingCode), VOTER };
+		
+					foundVotingParticipants = new ArrayList<>(
+							Arrays.asList(searchAgentByType(types)));
+		
+					informCandidatesProposals(foundVotingParticipants);
+		
+					ACLMessage requestVoteMsg = new ACLMessage(ACLMessage.REQUEST);
+					requestVoteMsg.setContent(String.format("%s VOTE FOR %d WITH %d CANDIDATES", REQUEST, votingCode, candidatures.size()));
+					
+					foundVotingParticipants.forEach(ag -> 
+						requestVoteMsg.addReceiver(ag.getName())
+					);
+					
+					send(requestVoteMsg);
+					logger.log(Level.INFO, 
+							String.format("%s REQUESTED A VOTE FOR ALL %d VOTERS!", getLocalName(), foundVotingParticipants.size()));
+				} catch ( Exception e ) {
+					logger.log(Level.SEVERE, String.format("%s ERROR WHILE INFORMING ELECTION START TO VOTERS! %s", ANSI_RED, ANSI_RESET));
+					e.printStackTrace();
+				}
+			} else {
+				throw new IllegalArgumentException("Voting code does not match!");
+			}
+		} catch ( Exception e ) {
+			logger.log(Level.SEVERE, String.format("%s ERROR WHILE PERFORMING BALLOT SETUP %s", ANSI_RED, ANSI_RESET));
+			e.printStackTrace();
+		}
+	}
+
+	private void setupBallot(ACLMessage msg) {
+		ballotCreated = true;
+		ACLMessage msg2 = msg.createReply();
+
+		StringBuilder strBld = new StringBuilder();
+		for ( Map.Entry<Types,Integer> entry : votingWeights.entrySet() ) {
+			strBld.append(String.format("%s %d ", entry.getKey().toString(), entry.getValue()));
+		}
+
+		msg2.setContent(String.format("VOTEID %d WEIGHTS %d %s", votingCode, votingWeights.size(), strBld.toString().trim()));
+		send(msg2);
+	}
+
+	private void verifyElectionStatus(ACLMessage msg, String[] splittedMsg) {
+		if( splittedMsg[2].startsWith(Integer.toString(votingCode)) )
+			registeredQuorum++;
+
+		if ( msg.getContent().endsWith("CANDIDATURE") ) {
+			preCandidates.add(msg.getSender());
+		}
+
+		if ( (registeredQuorum == totalQuorum) && (preCandidates.isEmpty()) && Boolean.FALSE.equals(ballotRequested)) {
+			createBallot();
+		}
+	}
+
+	private void createElection(Agent myAgent, ACLMessage msg) {
+		votingCode = votingCodeGenerator();
+
+		setupVotingWeights();
+		genCandidateCodes();
+
+		registerDF(myAgent, Integer.toString(votingCode), Integer.toString(votingCode));
+		
+		registeredQuorum = 0;
+
+		logger.log(Level.INFO, String.format("%s AGENT GENERATED ELECTION WITH CODE %d!", getLocalName(), votingCode));
+		
+		ACLMessage msg2 = msg.createReply();
+
+		msg2.setContent(String.format("VOTEID %d", votingCode));
+
+		send(msg2);
+		logger.log(Level.INFO,  String.format("%s SENT ELECTION CODE TO %s", getLocalName(), msg.getSender().getLocalName()));
+		
+		candidatures = new Hashtable<>();
+		preCandidates = new ArrayList<>();
 	}
 
 	@Override
@@ -286,32 +331,6 @@ public class Mediator extends BaseAgent {
 
 		for ( Types element : Types.values() ) {
 			votingWeights.put(element, rand.nextInt(1,6));
-		}
-	}
-	
-	private void startElection() {
-		try {
-			ArrayList<DFAgentDescription> foundVotingParticipants;
-			String [] types = { Integer.toString(votingCode), VOTER };
-
-			foundVotingParticipants = new ArrayList<>(
-					Arrays.asList(searchAgentByType(types)));
-
-			informCandidatesProposals(foundVotingParticipants);
-
-			ACLMessage requestVoteMsg = new ACLMessage(ACLMessage.REQUEST);
-			requestVoteMsg.setContent(String.format("%s VOTE FOR %d WITH %d CANDIDATES", REQUEST, votingCode, candidatures.size()));
-			
-			foundVotingParticipants.forEach(ag -> 
-				requestVoteMsg.addReceiver(ag.getName())
-			);
-			
-			send(requestVoteMsg);
-			logger.log(Level.INFO, 
-					String.format("%s REQUESTED A VOTE FOR ALL %d VOTERS!", getLocalName(), foundVotingParticipants.size()));
-		} catch ( Exception e ) {
-			logger.log(Level.SEVERE, String.format("%s ERROR WHILE INFORMING ELECTION START TO VOTERS! %s", ANSI_RED, ANSI_RESET));
-			e.printStackTrace();
 		}
 	}
 	

@@ -65,8 +65,6 @@ public class Ballot extends BaseAgent {
 							String.format("RECEIVED ELECTION ID FROM %s: %s", msg.getSender().getLocalName(), msg.getContent()));
 					
 					votingCode = Integer.parseInt(splittedMsg[1]);
-					
-					
 
 					setupBallot(this.myAgent, splittedMsg);
 
