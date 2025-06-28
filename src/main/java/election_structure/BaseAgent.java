@@ -45,6 +45,13 @@ public abstract class BaseAgent extends Agent {
 	public static final String QUORUM = "QUORUM";
 	public static final String CANDIDATURE = "CANDIDATURE";
 	public static final String PROPOSAL = "PROPOSAL";
+	public static final String CHECK = "CHECK";
+	public static final String FAILURE = "FAILURE";
+	public static final String READY = "READY";
+	public static final String RESULTS = "RESULTS";
+	public static final String ELECTIONLOG = "ELECTIONLOG";
+	public static final String CANDIDCODE = "CANDIDCODE";
+	public static final String CANDIDATE = "CANDIDATE";
 
 	public static final String ANSI_RESET = "\u001B[0m";
 	public static final String ANSI_BLUE = "\u001B[34m";

@@ -49,7 +49,6 @@ public class Ballot extends BaseAgent {
 			Arrays.asList(searchAgentByType("Mediator")));
 
 		sendMessage(foundAgent.get(0).getName().getLocalName(), ACLMessage.INFORM, "CHECK");
-
     }
 
     @Override
