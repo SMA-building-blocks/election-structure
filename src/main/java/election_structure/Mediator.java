@@ -65,19 +65,19 @@ public class Mediator extends BaseAgent {
 					case REGISTERED:
 						verifyElectionStatus(msg, splittedMsg); 
 						break;
-					case "CHECK":
+					case CHECK:
 						setupBallot(msg);
 						break;
-					case "FAILURE":
+					case FAILURE:
 						resetElection(myAgent);
 						break;
-					case "READY":
+					case READY:
 						startElection(splittedMsg);
 						break;
-					case "RESULTS":
+					case RESULTS:
 						processElectionResults(msg, splittedMsg);
 						break;
-					case "ELECTIONLOG":
+					case ELECTIONLOG:
 						logger.log(Level.INFO, String.format("%s %s %s", ANSI_PURPLE, msg.getContent(), ANSI_RESET));
 						resetElection(myAgent);
 						break;
@@ -161,7 +161,7 @@ public class Mediator extends BaseAgent {
 		if( splittedMsg[2].startsWith(Integer.toString(votingCode)) )
 			registeredQuorum++;
 
-		if ( msg.getContent().endsWith("CANDIDATURE") ) {
+		if ( msg.getContent().endsWith(CANDIDATURE) ) {
 			preCandidates.add(msg.getSender());
 		}
 

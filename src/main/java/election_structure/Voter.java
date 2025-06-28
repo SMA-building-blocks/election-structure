@@ -67,17 +67,17 @@ public class Voter extends BaseAgent {
 					case INVITE:
 						registerForElection(this.myAgent, msg, splittedMsg);
 						break;
-					case "CANDIDCODE":
+					case CANDIDCODE:
 						myCandidatureCode = Integer.parseInt(splittedMsg[1]);
 						registerCandidature(myAgent, myCandidatureCode, msg);
 						break;
-					case "CANDIDATE":
+					case CANDIDATE:
 						String prop = msg.getContent().substring(msg.getContent().indexOf(PROPOSAL) + PROPOSAL.length() + 1); 
 
 						recvProposals.put(splittedMsg[1], prop);
 						candidatesCount++;
 						break;
-					case "RESULT":
+					case RESULTS:
 						logger.log(Level.INFO, getLogContent(splittedMsg));
 						break;
 					default:
@@ -216,7 +216,6 @@ public class Voter extends BaseAgent {
 
 	private void informVotingRegistration() {
 		ACLMessage informMsg = new ACLMessage(ACLMessage.INFORM);
-
 
 		String sendMsg = String.format("%s IN %d", REGISTERED, votingCode);
 
