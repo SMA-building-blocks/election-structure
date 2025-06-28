@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.logging.Level;
 
+import jade.core.behaviours.OneShotBehaviour;
 import jade.lang.acl.ACLMessage;
 import jade.wrapper.AgentContainer;
 import jade.wrapper.AgentController;
@@ -14,6 +15,8 @@ import jade.wrapper.AgentController;
 public class App extends BaseAgent {
 
 	private static final long serialVersionUID = 1L;
+
+	private int ballotCnt = 0;
 
 	@Override
 	protected void setup() {
@@ -33,7 +36,6 @@ public class App extends BaseAgent {
 		int votersQuorum = 0;
 		if (args != null && args.length > 0) {
 			votersQuorum = Integer.parseInt(args[0].toString());
-			randomAgentMalfunction = (Integer.parseInt(args[1].toString()) > 0);
 		}
 
 		int votingStarter = rand.nextInt(votersQuorum);
@@ -45,7 +47,6 @@ public class App extends BaseAgent {
 
 		try {
 			AgentContainer container = getContainerController();
-
 			votersName.forEach(worker -> {
 				this.launchAgent(worker, "election_structure.Voter", null);
 				logger.log(Level.INFO, String.format("%s CREATED AND STARTED NEW VOTER: %s ON CONTAINER %s",
@@ -92,5 +93,37 @@ public class App extends BaseAgent {
 			logger.log(Level.SEVERE, String.format("%s ERROR WHILE LAUNCHING AGENTS %s", ANSI_RED, ANSI_RESET));
 			e.printStackTrace();
 		}
+	}
+
+	@Override
+	protected OneShotBehaviour handleRequest(ACLMessage msg) {
+		return new OneShotBehaviour(this) {
+			private static final long serialVersionUID = 1L;
+
+			public void action() {
+				if (msg.getContent().startsWith(CREATE)) {
+					String [] splittedMsg = msg.getContent().split(" ");
+
+					if(splittedMsg[1].equals("Ballot")){
+						try {
+							String ballot = String.format("%s%d", "ballot_", ballotCnt);
+
+							ballotCnt++;
+							
+							launchAgent(ballot, "election_structure.Ballot", null);	
+							
+							AgentContainer container = getContainerController();
+							logger.log(Level.INFO, String.format("%s CREATED AND STARTED NEW BALLOT: %s ON CONTAINER %s",
+							getLocalName(), ballot, container.getName()));	
+						} catch (Exception any) {
+							logger.log(Level.SEVERE, String.format("%s ERROR WHILE CREATING AGENTS %s", ANSI_RED, ANSI_RESET));
+							any.printStackTrace();
+						}
+					}else{
+						logger.log(Level.SEVERE, String.format("%s UNEXPECTED AGENT REQUESTED %s", ANSI_YELLOW, ANSI_RESET));
+					}
+				}
+			}
+		};
 	}
 }

@@ -1,9 +1,8 @@
 QUORUM ?= 3
-MALFUNCTION ?= 0
 DF_MAX_RESULT := $(shell expr $(QUORUM) + 5)
 PATH_PROJECT_JAR = target/election_structure-0.0.1-SNAPSHOT.jar
 PROJECT_GROUP    = election_structure
-JADE_AGENTS      = election_structure:$(PROJECT_GROUP).App($(QUORUM), $(MALFUNCTION));
+JADE_AGENTS      = election_structure:$(PROJECT_GROUP).App($(QUORUM));
 JADE_FLAGS 		 = -gui -jade_domain_df_maxresult $(DF_MAX_RESULT) -agents "$(JADE_AGENTS)"
 
 .PHONY:
@@ -40,7 +39,5 @@ help:
 	@echo "	$$ make help"
 	@echo "	  Shows this help resume"
 	@echo ""
-	@echo "If wanted it's possible to change the quantity of agents by adding the variable QUORUM to the command, as seen in the next line"
+	@echo "If wanted it's possible to change the quantity of agents by adding the variable QUORUM (with a value equal or greater than 1) to the command, as seen in the next line"
 	@echo "	$$ make build-and-run QUORUM=<Quantity of agents>"
-	@echo "It's possible to activate a random agent malfunction to test timeout more effectively, as seen in the next line"
-	@echo "	$$ make build-and-run MALFUNCTION=1"

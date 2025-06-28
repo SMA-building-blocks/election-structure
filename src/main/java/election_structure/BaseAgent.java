@@ -1,6 +1,7 @@
 package election_structure;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Random;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
@@ -17,6 +18,10 @@ import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.SearchConstraints;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.lang.acl.ACLMessage;
+
+enum Types {
+	COMMON_VOTER
+}
 
 public abstract class BaseAgent extends Agent {
 
@@ -36,6 +41,10 @@ public abstract class BaseAgent extends Agent {
 	public static final String UNEXPECTED_MSG = "RECEIVED AN UNEXPECTED MESSAGE FROM";
 	public static final String CREATE = "CREATE";
 	public static final String CREATOR = "Creator";
+	public static final String VOTER = "voter";
+	public static final String QUORUM = "QUORUM";
+	public static final String CANDIDATURE = "CANDIDATURE";
+	public static final String PROPOSAL = "PROPOSAL";
 
 	public static final String ANSI_RESET = "\u001B[0m";
 	public static final String ANSI_BLUE = "\u001B[34m";
@@ -54,8 +63,11 @@ public abstract class BaseAgent extends Agent {
 	protected static final Logger logger = Logger.getLogger(BaseAgent.class.getName());
 
 	protected static final Long TIMEOUT_LIMIT = 1000L;
-	protected static boolean randomAgentMalfunction = false;
 	protected boolean brokenAgent = false;
+	protected boolean candidate = false;
+
+	public static final String DEFAULT_PROPOSAL = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam suscipit tempor sem, id egestas metus commodo nec. Vivamus semper ultricies risus, vitae sollicitudin erat molestie a. Cras posuere turpis condimentum interdum rhoncus. Nulla a velit velit. Maecenas accumsan a leo eu lacinia. Cras lectus ligula, egestas quis eros ac, condimentum dapibus nisl. Nunc cursus nisi neque, eget tempor felis iaculis ac. Ut libero ipsum, fermentum vel enim non, cursus hendrerit massa. Etiam efficitur nisi a ullamcorper blandit. Suspendisse sodales interdum turpis, sed rhoncus enim dapibus dignissim. Vestibulum ut lacinia mi, sed varius tellus.";
+
 
 	@Override
 	protected void setup() {}
@@ -152,7 +164,7 @@ public abstract class BaseAgent extends Agent {
 		};
 	}
 
-	protected WakerBehaviour timeoutBehaviour(AID requestedAgent, String requestedOperation, long timeout) {
+	protected WakerBehaviour timeoutBehaviour( String motivation, long timeout) {
 		return new WakerBehaviour (this, timeout) {
 			private static final long serialVersionUID = 1L;
 
@@ -163,8 +175,8 @@ public abstract class BaseAgent extends Agent {
 				 * IMPLEMENT THIS METHOD BEHAVIOUR ON CONCRETE CLASS
 				 */
 				ACLMessage newMessage = new ACLMessage(ACLMessage.SUBSCRIBE);
-				newMessage.addReceiver(requestedAgent);
-				newMessage.setContent(String.format("%l %s", timeout, requestedOperation));
+				newMessage.addReceiver(this.getAgent().getAID());
+				newMessage.setContent(String.format("%l %s", timeout, motivation));
 				send(newMessage);
 			}
 		};
@@ -289,6 +301,19 @@ public abstract class BaseAgent extends Agent {
 		handler.setFormatter(new LogFormatter());
 		logger.setUseParentHandlers(false);
 		logger.addHandler(handler);
+	}
+
+	protected ArrayList<DFAgentDescription> findMediators ( String[] searchAttr ) {
+		ArrayList<DFAgentDescription> foundMediators;
+		
+		ArrayList<String> searchTypes = new ArrayList<>(Arrays.asList("mediator"));
+		if ( searchAttr.length > 0 )
+			searchTypes.addAll(Arrays.asList(searchAttr));
+
+		foundMediators = new ArrayList<>(
+			Arrays.asList(searchAgentByType(searchTypes.toArray(new String[]{}))));
+
+		return foundMediators;
 	}
 }
 
