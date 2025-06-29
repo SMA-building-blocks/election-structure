@@ -9,6 +9,18 @@
 
 *Tabela 1: Identificação dos Autores*
 
+## Métricas do *Building Block*
+
+[![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=tcc-sma-andre-gabriel_election-structure&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=tcc-sma-andre-gabriel_election-structure)
+[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=tcc-sma-andre-gabriel_election-structure&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=tcc-sma-andre-gabriel_election-structure)
+[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=tcc-sma-andre-gabriel_election-structure&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=tcc-sma-andre-gabriel_election-structure)
+
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=tcc-sma-andre-gabriel_election-structure&metric=bugs)](https://sonarcloud.io/summary/new_code?id=tcc-sma-andre-gabriel_election-structure)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=tcc-sma-andre-gabriel_election-structure&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=tcc-sma-andre-gabriel_election-structure)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=tcc-sma-andre-gabriel_election-structure&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=tcc-sma-andre-gabriel_election-structure)
+
+[![SonarQube Cloud](https://sonarcloud.io/images/project_badges/sonarcloud-dark.svg)](https://sonarcloud.io/summary/new_code?id=tcc-sma-andre-gabriel_election-structure)
+
 ## Descrição
 
 O *building block* contido neste repositório tem por objetivo o desenvolvimento de um sistema de eleições, o qual descreve um processo da democracia, esse que visa a escolha de um representante dentre os candidatos possíveis, sendo escolhido aquele que receber a maior quantidade de votos.
@@ -23,11 +35,33 @@ Após a contabilização do resultado pela urna, a mesma retorna ao agente media
 
 Por fim, o agente mediador se responsabiliza pela deleção de todas as informações relativas à votação realizada, encerrando assim o processo decisório.
 
-### Projeto em Execução
+## Projeto em Execução
 
-<img src="" alt="Descrição do Print">
+Abaixo, é possível ver o uso do sniffer da plataforma JADE sobre a comunicação realizada entre os agentes após a execução da aplicação anteriormente descrita.
 
-*Figura 1: Print do Projeto em Execução*
+<img src="assets/figura1.png" alt="Visualização dos Agentes pelo Sniffer">
+
+*Figura 1: Visualização dos Agentes pelo Sniffer*
+
+Na *Figura 1*, é possível ver ver os principais agentes instanciados pelo agente *creator* ao início da execução do *building block*, representando os papéis de mediador da eleição e seus votantes.
+
+Abaixo, na *Figura 2*, pode ser vista a mensagem de *start* enviada pelo agente *creator* a um agente votante escolhido randomicamente. Esta mensagem dá início a toda a lógica de solicitação e realização da eleição.
+
+<img src="assets/figura2.png" alt="Mensagem de Início da Execução da Eleição">
+
+*Figura 2: Mensagem de Início da Execução da Eleição*
+
+Adiante, na *Figura 3*, é apresentada a mensagem com as informações necessárias para a correta configuração da urna para a realização da eleição (i.e., o código da votação e os possíveis pesos existentes na votação).
+
+<img src="assets/figura3.png" alt="Mensagem com as Informações Necessárias para a Configuração da Urna">
+
+*Figura 3: Mensagem com as Informações Necessárias para a Configuração da Urna*
+
+Por fim, na *Figura 4* é possível ver a mensagem contendo os resultados da eleição realizada enviada pelo agente mediator a todos os agentes participantes da votação.
+
+<img src="assets/figura4.png" alt="Mensagem com os Resultados da Eleição Realizada">
+
+*Figura 4: Mensagem com os Resultados da Eleição Realizada*
 
 ## Requisitos Técnicos
 
