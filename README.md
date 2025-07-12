@@ -35,33 +35,47 @@ Após a contabilização do resultado pela urna, a mesma retorna ao agente media
 
 Por fim, o agente mediador se responsabiliza pela deleção de todas as informações relativas à votação realizada, encerrando assim o processo decisório.
 
+## Diagramação
+
+Abaixo, é apresentado o Diagrama de Classes que visa representar a estrutura e organização das classes que compõem o sistema, para além das relações entre estas.
+
+<img src="assets/diagrama_de_classes.png" alt="Diagrama de Classes">
+
+*Figura 1: Diagrama de Classes da Aplicação*
+
+Já abaixo, é apresentado o Diagrama de Sequências, o qual busca apresentar os fluxos de interação e algumas de suas nuances entre todas as classes (instanciadas enquanto agentes) da aplicação desenvolvida.
+
+<img src="assets/diagrama_de_sequencias.png" alt="Diagrama de Sequências">
+
+*Figura 2: Diagrama de Sequências da Aplicação*
+
 ## Projeto em Execução
 
 Abaixo, é possível ver o uso do sniffer da plataforma JADE sobre a comunicação realizada entre os agentes após a execução da aplicação anteriormente descrita.
 
 <img src="assets/figura1.png" alt="Visualização dos Agentes pelo Sniffer">
 
-*Figura 1: Visualização dos Agentes pelo Sniffer*
+*Figura 3: Visualização dos Agentes pelo Sniffer*
 
-Na *Figura 1*, é possível ver ver os principais agentes instanciados pelo agente *creator* ao início da execução do *building block*, representando os papéis de mediador da eleição e seus votantes.
+Na *Figura 3*, é possível ver ver os principais agentes instanciados pelo agente *creator* ao início da execução do *building block*, representando os papéis de mediador da eleição e seus votantes.
 
-Abaixo, na *Figura 2*, pode ser vista a mensagem de *start* enviada pelo agente *creator* a um agente votante escolhido randomicamente. Esta mensagem dá início a toda a lógica de solicitação e realização da eleição.
+Abaixo, na *Figura 4*, pode ser vista a mensagem de *start* enviada pelo agente *creator* a um agente votante escolhido randomicamente. Esta mensagem dá início a toda a lógica de solicitação e realização da eleição.
 
 <img src="assets/figura2.png" alt="Mensagem de Início da Execução da Eleição">
 
-*Figura 2: Mensagem de Início da Execução da Eleição*
+*Figura 4: Mensagem de Início da Execução da Eleição*
 
-Adiante, na *Figura 3*, é apresentada a mensagem com as informações necessárias para a correta configuração da urna para a realização da eleição (i.e., o código da votação e os possíveis pesos existentes na votação).
+Adiante, na *Figura 5*, é apresentada a mensagem com as informações necessárias para a correta configuração da urna para a realização da eleição (i.e., o código da votação e os possíveis pesos existentes na votação).
 
 <img src="assets/figura3.png" alt="Mensagem com as Informações Necessárias para a Configuração da Urna">
 
-*Figura 3: Mensagem com as Informações Necessárias para a Configuração da Urna*
+*Figura 5: Mensagem com as Informações Necessárias para a Configuração da Urna*
 
-Por fim, na *Figura 4* é possível ver a mensagem contendo os resultados da eleição realizada enviada pelo agente mediator a todos os agentes participantes da votação.
+Por fim, na *Figura 6* é possível ver a mensagem contendo os resultados da eleição realizada enviada pelo agente mediator a todos os agentes participantes da votação.
 
 <img src="assets/figura4.png" alt="Mensagem com os Resultados da Eleição Realizada">
 
-*Figura 4: Mensagem com os Resultados da Eleição Realizada*
+*Figura 6: Mensagem com os Resultados da Eleição Realizada*
 
 ## Requisitos Técnicos
 
